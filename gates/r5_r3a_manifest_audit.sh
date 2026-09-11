@@ -53,8 +53,10 @@ echo
 printf '%s\n' "===== MANIFEST POINTER ====="
 ls -ld "$WS/.repo/manifest.xml" | tee "$EVIDENCE_DIR/manifest_pointer_ls.txt" || fail "manifest.xml missing"
 readlink "$WS/.repo/manifest.xml" | tee "$EVIDENCE_DIR/manifest_pointer_raw.txt" || true
-readlink -f "$WS/.repo/manifest.xml" | tee "$EVIDENCE_DIR/manifest_pointer_resolved.txt" || fail "cannot resolve manifest.xml"
-sha256sum "$(readlink -f "$WS/.repo/manifest.xml")" | tee "$EVIDENCE_DIR/active_manifest_sha256.txt"
+ACTIVE_MANIFEST="$(readlink -f "$WS/.repo/manifest.xml")"
+[ -n "$ACTIVE_MANIFEST" ] || fail "cannot resolve manifest.xml"
+printf '%s\n' "$ACTIVE_MANIFEST" | tee "$EVIDENCE_DIR/manifest_pointer_resolved.txt"
+sha256sum "$ACTIVE_MANIFEST" | tee "$EVIDENCE_DIR/active_manifest_sha256.txt"
 
 echo
 printf '%s\n' "===== MANIFEST REPOSITORY IDENTITY ====="
@@ -80,19 +82,17 @@ echo
 printf '%s\n' "===== LOCAL MANIFEST INVENTORY ====="
 LOCAL_DIR="$WS/.repo/local_manifests"
 : > "$EVIDENCE_DIR/local_manifest_inventory.txt"
+LOCAL_COUNT=0
 if [ -d "$LOCAL_DIR" ]; then
-  find "$LOCAL_DIR" -maxdepth 1 -type f -print0 \
-    | sort -z \
-    | while IFS= read -r -d '' f; do
-        printf '%s  ' "$(sha256sum "$f" | awk '{print $1}')" | tee -a "$EVIDENCE_DIR/local_manifest_inventory.txt"
-        printf '%s\n' "${f#$WS/}" | tee -a "$EVIDENCE_DIR/local_manifest_inventory.txt"
-      done
+  while IFS= read -r -d '' f; do
+    LOCAL_COUNT=$((LOCAL_COUNT + 1))
+    printf '%s  %s\n' "$(sha256sum "$f" | awk '{print $1}')" "${f#$WS/}" \
+      | tee -a "$EVIDENCE_DIR/local_manifest_inventory.txt"
+  done < <(find "$LOCAL_DIR" -maxdepth 1 -type f -print0 | sort -z)
 else
   echo "NONE" | tee "$EVIDENCE_DIR/local_manifest_inventory.txt"
 fi
 cat "$EVIDENCE_DIR/local_manifest_inventory.txt"
-
-LOCAL_COUNT="$(find "$LOCAL_DIR" -maxdepth 1 -type f 2>/dev/null | wc -l | tr -d ' ')"
 echo "SABLESTART_R5_R3A_LOCAL_MANIFEST_FILE_COUNT=$LOCAL_COUNT"
 
 # Capture local manifest contents as evidence because they affect composition.
@@ -136,7 +136,10 @@ with open(out_path, 'w', encoding='utf-8') as fh:
     if not projects:
         fh.write('NONE\n')
     for idx, p in enumerate(projects, 1):
-        fh.write(f"[{idx}] name={p['name']} path={p['path']} remote={p['remote']} revision={p['revision']} upstream={p['upstream']}\n")
+        fh.write(
+            f"[{idx}] name={p['name']} path={p['path']} remote={p['remote']} "
+            f"revision={p['revision']} upstream={p['upstream']}\n"
+        )
 
 print(f"SABLESTART_R5_R3A_TARGET_PROJECT_COUNT={len(projects)}")
 if len(projects) == 0:
@@ -195,7 +198,11 @@ echo
 printf '%s\n' "===== FINAL EVIDENCE SEAL ====="
 (
   cd "$EVIDENCE_DIR"
-  find . -maxdepth 1 -type f ! -name SHA256SUMS.txt ! -name SHA256SUMS.txt.sha256 -printf '%P\0' \
+  find . -maxdepth 1 -type f \
+    ! -name 'r5_r3a_manifest_audit.log' \
+    ! -name 'SHA256SUMS.txt' \
+    ! -name 'SHA256SUMS.txt.sha256' \
+    -printf '%P\0' \
     | sort -z \
     | xargs -0 -r sha256sum
 ) > "$EVIDENCE_DIR/SHA256SUMS.txt"
