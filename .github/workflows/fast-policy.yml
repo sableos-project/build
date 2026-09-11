@@ -1,0 +1,19 @@
+name: Fast Policy CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  policy:
+    uses: sableos-project/.github/.github/workflows/reusable-fast-policy.yml@e20a5678f3c86897f9fe84e1fec5749386a573dd
