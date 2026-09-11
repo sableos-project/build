@@ -16,4 +16,4 @@ concurrency:
 
 jobs:
   policy:
-    uses: sableos-project/.github/.github/workflows/reusable-fast-policy.yml@e20a5678f3c86897f9fe84e1fec5749386a573dd
+    uses: sableos-project/.github/.github/workflows/reusable-fast-policy.yml@42f7b2b08a5991980609ca178fb116bc8484f944
