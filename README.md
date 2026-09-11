@@ -12,7 +12,8 @@ This repository answers **how** SableOS source is obtained, assembled, built, an
 - evidence capture separated from source and build outputs;
 - support for multiple device/substrate profiles without copying common tooling;
 - gates that fail closed and state exactly what they prove;
-- clean reconstruction from organization repositories rather than dependence on historical workspace-only source.
+- clean reconstruction from organization repositories rather than dependence on historical workspace-only source;
+- CI execution that preserves the trust boundary between disposable PR runners, trusted Android builds, device validation, and release signing.
 
 ## Planned layout
 
@@ -33,7 +34,7 @@ gates/
     pre-build, compile, artifact, runtime and reconstruction gates
 
 docs/
-    build architecture, authorization and reproducibility policy
+    build architecture, authorization, CI and reproducibility policy
 ```
 
 ## Current migration/build state
@@ -41,6 +42,17 @@ docs/
 The current work is at the R5 boundary: the validated Sable Start source has been captured, sealed in the organization repository, pushed, and opened as PR #1, while the migrated-checkout build/reconstruction proof is still being closed.
 
 The ThinkPad host has also demonstrated that some unprivileged bubblewrap namespace modes are blocked by host policy. Such a stop is an isolation-environment limitation, not a source compile failure. Build tooling must preserve the declared authorization/network/source boundary rather than silently weakening it to make a gate run.
+
+## CI infrastructure identity
+
+```text
+thinkpad-p50      = sable-builder-01
+optiPlex          = sable-signer-01
+Pixel 7 / panther = sable-device-01
+GitHub hosted     = untrusted/disposable CI
+```
+
+The normative trust model is in `sableos-project/.github/docs/CI_TRUST_ARCHITECTURE.md` and the execution model is in [`docs/CI_EXECUTION_MODEL.md`](docs/CI_EXECUTION_MODEL.md).
 
 ## Development milestone gates
 
@@ -59,6 +71,7 @@ It covers:
 
 See also:
 
+- [`docs/CI_EXECUTION_MODEL.md`](docs/CI_EXECUTION_MODEL.md)
 - [`docs/BUILD_LAYOUT.md`](docs/BUILD_LAYOUT.md)
 - [`docs/REPRODUCIBILITY.md`](docs/REPRODUCIBILITY.md)
 - [`docs/AUTHORIZATION_MODEL.md`](docs/AUTHORIZATION_MODEL.md)
