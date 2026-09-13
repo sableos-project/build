@@ -37,11 +37,13 @@ docs/
     build architecture, authorization, CI and reproducibility policy
 ```
 
-## Current migration/build state
+## Development state
 
-The current work is at the R5 boundary: the validated Sable Start source has been captured, sealed in the organization repository, pushed, and opened as PR #1, while the migrated-checkout build/reconstruction proof is still being closed.
+This repository is not the program progress ledger. Current milestone status and product scope belong in the organization development-plan/status documentation and in accepted milestone evidence.
 
-The ThinkPad host has also demonstrated that some unprivileged bubblewrap namespace modes are blocked by host policy. Such a stop is an isolation-environment limitation, not a source compile failure. Build tooling must preserve the declared authorization/network/source boundary rather than silently weakening it to make a gate run.
+Build procedures should remain reusable across milestones and devices. Lessons learned from Panther/GrapheneOS Android 17 product builds are captured in [`docs/ANDROID_PRODUCT_BUILD_PLAYBOOK.md`](docs/ANDROID_PRODUCT_BUILD_PLAYBOOK.md) and should be applied when adding future target/substrate profiles rather than rediscovered in one-off scripts.
+
+The ThinkPad host has demonstrated that some unprivileged bubblewrap namespace modes are blocked by host policy. Such a stop is an isolation-environment limitation, not a source compile failure. Build tooling must preserve the declared authorization/network/source boundary rather than silently weakening it to make a gate run.
 
 ## CI infrastructure identity
 
@@ -71,6 +73,7 @@ It covers:
 
 See also:
 
+- [`docs/ANDROID_PRODUCT_BUILD_PLAYBOOK.md`](docs/ANDROID_PRODUCT_BUILD_PLAYBOOK.md)
 - [`docs/CI_EXECUTION_MODEL.md`](docs/CI_EXECUTION_MODEL.md)
 - [`docs/BUILD_LAYOUT.md`](docs/BUILD_LAYOUT.md)
 - [`docs/REPRODUCIBILITY.md`](docs/REPRODUCIBILITY.md)
