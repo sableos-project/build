@@ -15,9 +15,12 @@ Use explicit layers:
 ```text
 source identity
   -> build input identity
-  -> build result
-  -> package/artifact identity
-  -> install/integration identity
+  -> module discovery
+  -> module compile result
+  -> generated install rules
+  -> product selection
+  -> PRODUCT_OUT install identity
+  -> image composition identity
   -> runtime state
   -> user-visible behavior
   -> complete source reconstruction
@@ -27,7 +30,10 @@ Do not infer a later layer from an earlier one.
 
 Examples:
 
-- successful compilation does not prove runtime behavior;
+- successful compilation does not prove product inclusion or runtime behavior;
+- `all_modules.txt` membership proves module discovery, not that the selected product requested the module;
+- `module-info.json` install destinations and `installs-<product>.mk` rules prove possible/generated install wiring, not that the artifact is present in `PRODUCT_OUT`;
+- a full Android/Ninja build can succeed while a required Sable package is absent from the product;
 - an APK existing does not prove it contains the intended source result;
 - an installed package does not prove the tested HOME/default-role state;
 - a screenshot does not prove package inventory completeness by itself;
@@ -62,6 +68,8 @@ Known historical example: `pipefail` plus `unzip | grep -q` can make the produce
 
 When possible, use structured parsers or inspect command exit semantics explicitly.
 
+A late closure failure must not rewrite an earlier bounded success. If Ninja completed successfully but a required product artifact is absent, report the Android build and product-composition closure separately.
+
 ### 1.4 Evidence directories
 
 Prefer a unique run directory such as:
@@ -80,6 +88,18 @@ Store:
 - a final `SHA256SUMS.txt` and seal hash.
 
 Do not delete older evidence automatically unless a separate cleanup policy authorizes it.
+
+If a gate terminates before the final evidence-seal step, describe the evidence directory as preserved/unsealed rather than claiming a completed evidence seal.
+
+### 1.5 Long-build preservation
+
+For long Android product builds, preserve a persistent console/build log outside the interactive terminal session and monitor free space during execution.
+
+If a terminal or `tmux` session disappears, first inspect active build processes, logs, result markers, output artifacts, and storage state. Do not automatically rerun the build.
+
+When a long build succeeds but a later artifact/composition gate fails, preserve the existing `OUT_DIR` unless cleanup is separately authorized. Diagnose the failure before deciding whether incremental continuation or a later clean reconstruction is appropriate.
+
+See `docs/ANDROID_PRODUCT_BUILD_PLAYBOOK.md` for reusable target-resolution and full-product build guidance.
 
 ## 2. R5 — migrated-source build and reconstruction
 
@@ -144,11 +164,72 @@ Record resolved project revisions before building.
 
 Feature requirements live in `packages_apps_SableStart/docs/R6_ALL_APPS_AND_GREETING.md`.
 
-### 3.1 Build gate
+### 3.1 Module build gate
 
 Bind the R6 Sable Start source commit and complete source composition; build the module; validate APK/package identity.
 
-### 3.2 Independent launcher inventory
+Record module discovery and module-build proof separately from product inclusion. A successful `m SableStart` does not prove a Panther/full-product image contains Sable Start.
+
+### 3.2 Product-composition and coherent-image closure
+
+Before R6 runtime validation on a coherent image, prove the selected Android product actually includes the required Sable Start package.
+
+Record at least:
+
+```text
+exact lunch invocation
+TARGET_PRODUCT
+release configuration supplied to lunch
+TARGET_BUILD_VARIANT
+resolved BUILD_ID
+full Android build result
+required image inventory
+SableStart product-selection evidence
+SableStart installed-file evidence
+SableStart PRODUCT_OUT artifact path/hash
+native/JNI product artifact path/hash/linkage where applicable
+source/worktree poststate
+```
+
+Use the following distinctions:
+
+```text
+all_modules.txt
+    module discovered by build system
+
+module-info.json
+    module metadata / possible install destinations
+
+installs-<product>.mk
+    generated install rules
+
+installed-files*.txt
+    selected product installed-file evidence
+
+target/product/<product>/...
+    concrete PRODUCT_OUT artifact
+
+system/product/system_ext image inspection or runtime
+    image incorporation / runtime evidence
+```
+
+Do not promote module discovery, module compile success, or generated install rules into `PRODUCT_SELECTION=PASS`.
+
+If the base Android build and required image set succeed but Sable Start is absent, use separate results, for example:
+
+```text
+FULL_ANDROID_BUILD=PASS
+REQUIRED_IMAGES=PASS
+SABLESTART_PRODUCT_SELECTION=FAIL
+SABLESTART_PRODUCT_INSTALL=FAIL
+R6_FULL_IMAGE_CLOSURE=FAIL
+```
+
+Treat a missing common Sable package as a product-composition ownership problem until evidence identifies a lower-level build defect. Do not patch generated substrate/device product files merely because they contain `PRODUCT_PACKAGES`; follow the documented `vendor_sable` / `device_sable_<target>` ownership boundary.
+
+A late product-composition failure after a successful long build should preserve the existing output and logs. Do not automatically clean, clobber, delete, or repeat the full build.
+
+### 3.3 Independent launcher inventory
 
 The runtime gate should collect an expected launcher-visible activity inventory independently from the rendered Compose UI where practical.
 
@@ -170,7 +251,7 @@ UI_count=logical_inventory_count
 
 If adb/shell visibility differs from the app's permitted `LauncherApps` view, document and account for that API boundary instead of forcing a false equality.
 
-### 3.3 Search proof
+### 3.4 Search proof
 
 Prove Search is driven by the same live inventory. A practical gate can:
 
@@ -180,7 +261,7 @@ Prove Search is driven by the same live inventory. A practical gate can:
 - prove same component/profile identity;
 - remove/change a test app and prove both All Apps and Search update consistently.
 
-### 3.4 Dynamic package change
+### 3.5 Dynamic package change
 
 Keep at least one expendable third-party fixture installed for the initial inventory. Maps/Weather currently serve this role if still present.
 
@@ -196,13 +277,13 @@ If authorized, capture:
 6. after count/inventory;
 7. zero unrelated differences.
 
-### 3.5 Greeting proof
+### 3.6 Greeting proof
 
 Prefer deterministic unit tests for all time-bucket boundaries. Runtime evidence only needs to prove the active greeting matches the actual device-local time bucket.
 
 Do not change global device time merely to force all buckets unless separately authorized.
 
-### 3.6 HOME/default-role boundary
+### 3.7 HOME/default-role boundary
 
 R6 launcher feature validation does not automatically authorize changing default HOME.
 
@@ -392,6 +473,14 @@ Prefer an explicit network-isolation/probe mechanism where the claim requires it
 Never run `m clean`, `clobber`, delete output trees, or reset source merely because a build failed unless cleanup is explicitly authorized.
 
 Fresh isolated output directories are preferred for proof isolation when feasible.
+
+### 8.6 Target and storage preflight
+
+Before a long Android product build, resolve and record the exact target invocation, product, variant, release configuration, expected/resolved Build ID, generated vendor/product identity, existing-build state, OUT mutation scope, and initial free space.
+
+Use periodic free-space monitoring for long builds. Storage exhaustion must not trigger an implicit cleanup policy.
+
+For Android 17 target-selection and generated-product details, follow `docs/ANDROID_PRODUCT_BUILD_PLAYBOOK.md`.
 
 ## 9. Evidence status vocabulary
 
