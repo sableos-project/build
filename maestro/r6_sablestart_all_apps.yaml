@@ -1,0 +1,24 @@
+appId: org.sableos.start
+---
+- pressKey: home
+- assertVisible: "Sable Start"
+- tapOn: "all apps"
+- assertVisible: "all apps · 11"
+- scrollUntilVisible:
+    element: "Settings"
+    direction: DOWN
+    timeout: 20000
+- tapOn: "Settings"
+- assertVisible: "Settings"
+- pressKey: home
+- assertVisible: "Sable Start"
+- tapOn: "all apps"
+- assertVisible: "all apps · 11"
+- scrollUntilVisible:
+    element: "Calculator"
+    direction: DOWN
+    timeout: 20000
+- tapOn: "Calculator"
+- assertVisible: "Calculator"
+- pressKey: home
+- assertVisible: "Sable Start"
