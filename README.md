@@ -2,7 +2,7 @@
 
 Host-side bootstrap, source assembly, build orchestration, reproducibility checks, and validation tooling for SableOS.
 
-This repository answers **how** SableOS source is obtained, assembled, built, and validated. Exact multi-repository source composition belongs in `platform_manifest`; product/application code belongs in its owning repository.
+This repository answers **how** SableOS source is obtained, assembled, built, tested, security-scanned, and validated. Exact multi-repository source composition belongs in `platform_manifest`; product/application code belongs in its owning repository.
 
 ## Goals
 
@@ -13,13 +13,14 @@ This repository answers **how** SableOS source is obtained, assembled, built, an
 - support for multiple device/substrate profiles without copying common tooling;
 - gates that fail closed and state exactly what they prove;
 - clean reconstruction from organization repositories rather than dependence on historical workspace-only source;
-- CI execution that preserves the trust boundary between disposable PR runners, trusted Android builds, device validation, and release signing.
+- CI execution that preserves the trust boundary between disposable PR runners, trusted Android builds, device validation, and release signing;
+- complementary security/privacy gates across source, dependencies, build artifacts, and runtime behavior rather than reliance on a single scanner.
 
 ## Planned layout
 
 ```text
 config/
-    pinned build/substrate profiles
+    pinned build/substrate and security-tool profiles
 
 bootstrap/
     upstream acquisition and verification
@@ -31,10 +32,10 @@ build/
     module and product build entry points
 
 gates/
-    pre-build, compile, artifact, runtime and reconstruction gates
+    pre-build, compile, static-analysis, artifact, runtime and reconstruction gates
 
 docs/
-    build architecture, authorization, CI and reproducibility policy
+    build architecture, authorization, CI, security/privacy testing and reproducibility policy
 ```
 
 ## Development state
@@ -42,6 +43,8 @@ docs/
 This repository is not the program progress ledger. Current milestone status and product scope belong in the organization development-plan/status documentation and in accepted milestone evidence.
 
 Build procedures should remain reusable across milestones and devices. Lessons learned from Panther/GrapheneOS Android 17 product builds are captured in [`docs/ANDROID_PRODUCT_BUILD_PLAYBOOK.md`](docs/ANDROID_PRODUCT_BUILD_PLAYBOOK.md) and should be applied when adding future target/substrate profiles rather than rediscovered in one-off scripts.
+
+Security/privacy testing policy is defined in [`docs/SECURITY_PRIVACY_TESTING.md`](docs/SECURITY_PRIVACY_TESTING.md). The primary Android UI stack is native Compose UI Test + AndroidX UIAutomator with shell evidence gates around artifact/device binding. Android source/build scanning uses complementary tools such as mobsfscan, Android Lint, detekt, CodeQL, Gitleaks and MobSF at the stages where each tool has meaningful visibility. Rust guidance covers rustfmt, Clippy, RustSec/cargo-audit, cargo-deny, cargo-vet and targeted fuzzing without inventing a Cargo dependency graph for Soong-only production modules.
 
 The ThinkPad host has demonstrated that some unprivileged bubblewrap namespace modes are blocked by host policy. Such a stop is an isolation-environment limitation, not a source compile failure. Build tooling must preserve the declared authorization/network/source boundary rather than silently weakening it to make a gate run.
 
@@ -71,9 +74,12 @@ It covers:
 - R9 Sable Calculator/utility validation;
 - R10+ inherited-application replacement evidence.
 
+Security/privacy testing is orthogonal to milestone numbering: every component should converge on the source -> dependency -> deterministic test -> trusted build -> artifact scan -> runtime -> evidence sequence described in [`docs/SECURITY_PRIVACY_TESTING.md`](docs/SECURITY_PRIVACY_TESTING.md).
+
 See also:
 
 - [`docs/ANDROID_PRODUCT_BUILD_PLAYBOOK.md`](docs/ANDROID_PRODUCT_BUILD_PLAYBOOK.md)
+- [`docs/SECURITY_PRIVACY_TESTING.md`](docs/SECURITY_PRIVACY_TESTING.md)
 - [`docs/CI_EXECUTION_MODEL.md`](docs/CI_EXECUTION_MODEL.md)
 - [`docs/BUILD_LAYOUT.md`](docs/BUILD_LAYOUT.md)
 - [`docs/REPRODUCIBILITY.md`](docs/REPRODUCIBILITY.md)
