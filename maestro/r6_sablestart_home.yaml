@@ -1,0 +1,8 @@
+appId: org.sableos.start
+---
+- pressKey: home
+- assertVisible: "Sable Start"
+- assertVisible: "11 available"
+- assertVisible: "Launcher-visible apps · 11"
+- assertVisible: "all apps"
+- assertVisible: "search"
