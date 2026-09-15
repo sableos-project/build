@@ -1,0 +1,14 @@
+appId: org.sableos.start
+---
+- pressKey: home
+- assertVisible: "Sable Start"
+- tapOn: "search"
+- assertVisible: "search"
+- assertVisible: "11 results"
+- tapOn: "Search apps"
+- inputText: "calculator"
+- assertVisible: "Calculator"
+- tapOn: "Calculator"
+- assertVisible: "Calculator"
+- pressKey: home
+- assertVisible: "Sable Start"
