@@ -2,171 +2,151 @@
 
 Status: **normative reproducibility/provenance policy.**
 
-SableOS distinguishes several related but different claims:
+SableOS distinguishes related but different claims:
 
 ```text
 source composition reproducibility
-standalone application reproducibility
+A1 standalone qualification reproducibility
+A2 trusted application artifact reproducibility
 product integration reproducibility
 artifact byte reproducibility
-runtime/release reproducibility
+runtime/portability reproducibility
+later signed-release reproducibility
 ```
 
 Do not use one as a substitute for another.
 
 ## 1. OS source composition
 
-A reproducible Android build starts from an explicit upstream/substrate identity plus exact Sable-owned repository revisions.
+A reproducible Android build starts from explicit upstream/substrate identity plus exact Sable-owned revisions. `platform_manifest` is authoritative. A clean reconstruction must not depend on manual source copies, untracked local manifests, host-only symlinks, uncommitted source, unresolved branch tips or historical workspace-only modules.
 
-The authoritative source-composition layer is `platform_manifest`.
+## 2. A1 disposable application qualification
 
-A clean reconstruction must not depend on:
+A1 may run on GitHub/developer machines and records exact source/upstream pins, lock/dependency state, workflow/tool identity, package/manifest state and qualification artifact hashes.
 
-- manual source copies;
-- untracked local manifests;
-- host-only symlinks;
-- uncommitted source;
-- branch tips without resolved commit identity;
-- historical workspace-only modules.
+A1 proves the declared standalone qualification only; it is not automatically the artifact consumed by the product.
 
-## 2. Standalone R8 application reproducibility
+## 3. A2 trusted standalone application reproducibility
 
-R8 applications may intentionally keep their canonical build/dependency graph in Cargo/Gradle/upstream application tooling rather than reproducing that whole graph in Soong.
+`ai-g732` rebuilds exact accepted source with pinned/recorded toolchains and produces the artifact eligible for the R8 freeze.
 
-For every accepted standalone application artifact record:
+For each accepted A2 artifact record:
 
 ```text
-source repository + exact commit
-upstream/reuse repository + exact commit where applicable
-lock/dependency state
-compiler/JDK/Gradle/Rust/Android SDK identity as applicable
-qualification workflow/run
+source/upstream commit(s)
+Gradle wrapper/version
+JDK
+Android SDK/NDK
+Rust toolchain + lockfile hashes
 build commands/variant
 package/application ID + version
-manifest permissions/components
-native ABI/library inventory
-APK SHA-256
-third-party dependency/provenance inventory
+permissions/components
+trusted APK SHA-256
+classes*.dex extracted-content SHA-256
+JNI .so extracted-content SHA-256
+native ABI inventory
+16 KiB compatibility
+dependency/provenance inventory
 ```
 
-An APK with the same package name but a different hash is a different product-integration input unless a documented deterministic transformation explains the difference.
+Where reproducible, compare A1 and A2 outputs. Unexplained differences block the trusted freeze until understood.
 
-## 3. Sable adaptation of external sources
+## 4. External-source adaptation
 
-For pinned sources such as Vaachak:
+For Vaachak or other pinned sources:
 
 ```text
 exact upstream commit
-+ exact Sable overlay/flavor/patch logic
-+ exact build/dependency environment
-= qualified source identity
++ exact Sable adaptation
++ exact trusted build/dependency environment
+= accepted trusted source/artifact identity
 ```
 
-Do not document a branch name as sufficient provenance.
+Branch names alone are never sufficient provenance.
 
-If an upstream repository changes after the accepted pin, the new revision requires a new qualification run before it can replace the frozen input.
+## 5. Product integration reproducibility
 
-## 4. Product integration reproducibility
+A reproducible SableOS development image records both exact source composition and exact trusted A2 application inputs.
 
-A reproducible SableOS image must record both:
-
-1. exact source composition; and
-2. exact qualified external application/artifact inputs when the build consumes prebuilts.
-
-For each imported application additionally record:
+For each imported app additionally record:
 
 ```text
-artifact source/freeze record
+A2 freeze record
 module/import declaration
+certificate/signing behavior
+JNI/dexpreopt/uses-library behavior
 product selection owner
 install partition/path
-signing or build-time transformation behavior
-PRODUCT_OUT resulting hash
-installed-files/target-files/image identity
+PRODUCT_OUT identity
+target-files/image identity when generated
 ```
 
-Do not claim the product was reconstructed solely from the Android source manifest when external sealed APKs were required and not represented by that provenance record.
+Do not claim reconstruction solely from the Android source manifest when trusted external APKs are also required.
 
-## 5. Source reproducibility versus byte reproducibility
+## 6. Whole-APK versus inner-code identity
 
-A source-reproducible build does not automatically produce byte-identical outputs if the build contains timestamps, nondeterministic archive ordering, signing state, generated metadata or toolchain/environment variability.
+Source reproducibility does not guarantee outer APK byte identity when signing, zip alignment, compression/layout or generated metadata changes.
 
-Record byte reproducibility as a separate claim.
-
-Where byte identity is expected, compare hashes under equivalent build inputs/toolchains. Where deterministic byte identity is not currently guaranteed, preserve enough provenance to explain and validate intentional transformations.
-
-## 6. Build host identity
-
-The host is part of build evidence even when it should not become a semantic product dependency.
-
-The first R8 `ai-g732` build after storage migration must record:
+Therefore track separately:
 
 ```text
-host/OS identity
-filesystem/storage identity
-workspace/output/evidence roots
-host toolchain identity
-source identities
-free-space state/policy
-network policy
+whole APK SHA-256
+classes*.dex extracted-content SHA-256
+lib/<abi>/*.so extracted-content SHA-256
 ```
 
-This prevents accidental dependence on hidden ThinkPad-only state while avoiding hard-coding one host's absolute paths into generic scripts.
+Intentional Soong/signing transformations must be documented rather than treated as unexplained code drift.
 
-## 7. Trusted toolchain and network
+## 7. Native 16 KiB reproducibility
 
-Record the toolchain versions/configuration required by the claim.
+R8 native artifacts must be reproducibly compatible with 16 KiB page-size systems using the pinned toolchain. Record ELF program-header alignment and APK native-library ZIP alignment. Runtime page size/JNI behavior are device evidence, not inferred from SoC name alone.
 
-When a gate declares an offline/no-fetch build phase, dependency acquisition must complete before that phase and the no-network boundary must be enforced or honestly reported as unproven.
+## 8. Build host / target isolation
 
-A successful build that silently fetched an undeclared dependency does not satisfy an offline reconstruction claim.
+The first R8 `ai-g732` build after storage migration records host/OS, filesystem/storage, workspace/output/evidence roots, toolchains, source identities, free-space/network policy and isolated OUT_DIR per target/materially different variant.
 
-## 8. Build caches
+Panther and Titan 2 should use the same trusted common app artifacts where compatible while keeping target output state separate.
 
-Caches are performance inputs, not provenance authorities.
+## 9. Caches/network
 
-- disposable CI caches are untrusted convenience data;
-- trusted builder caches are isolated from arbitrary PR code;
-- clean/reconstruction gates must be able to bypass/invalidate caches when necessary;
-- an artifact's accepted identity comes from source/tool/input/output evidence, not cache presence.
+Caches are performance inputs, not provenance authorities. Disposable caches are untrusted convenience data; trusted caches are isolated from arbitrary PR code; clean/reconstruction claims can bypass/invalidate caches. Offline/no-fetch claims require actual dependency pre-acquisition and an honestly enforced/reported boundary.
 
-## 9. Evidence package
+## 10. Evidence package
 
-A strong reconstruction/reproducibility evidence set records:
+A strong evidence set records:
 
 ```text
 platform_manifest/source identity
-external_artifact_inputs.txt
+trusted_external_artifact_inputs
 host/build environment
 resolved target product/release/variant/Build ID
-build commands and result
+build commands/result
 artifact inventory
 product/package install evidence
+target-files/image identities
 SHA256SUMS
-known nondeterminism/transformations
+known transformations/nondeterminism
 final gate report + seal
 ```
 
-## 10. Signing/release
+## 11. Production signing — later
 
-Signing is a separate provenance stage. Reproducing an unsigned engineering image is not the same claim as reproducing a signed release package.
+Development/test signing identity is separate from production release signing.
 
-A release record binds the approved pre-sign candidate hashes to signed outputs and signing identity/channel without exposing private signing material.
+Production app keys, AVB, OTA, `sign_target_files_apks`, signing-host hardening/key custody and signed-output provenance are deliberately deferred until Panther and Titan 2 development qualification is satisfactory.
 
-## 11. Historical evidence
+The ThinkPad P50 is only a future signing-host candidate and is not yet `sable-signer-01`.
 
-Older ThinkPad/Panther builds remain useful reference evidence even after the trusted build host moves. Preserve historical source/build/artifact seals; do not mutate old records to fit a new workspace layout.
-
-## 12. Reproducibility closure rule
-
-Use precise language:
+## 12. Closure vocabulary
 
 ```text
-SOURCE_RECONSTRUCTION=PASS
-STANDALONE_APP_REPRODUCIBILITY=PASS/UNPROVEN
+SOURCE_RECONSTRUCTION=PASS/UNPROVEN
+A1_QUALIFICATION_REPRODUCIBILITY=PASS/UNPROVEN
+A2_TRUSTED_APP_REPRODUCIBILITY=PASS/UNPROVEN
 EXTERNAL_ARTIFACT_INPUT_BINDING=PASS/UNPROVEN
 PRODUCT_INTEGRATION_RECONSTRUCTION=PASS/UNPROVEN
 BYTE_REPRODUCIBILITY=PASS/UNPROVEN
+PORTABILITY_REPRODUCIBILITY=PASS/UNPROVEN
 SIGNED_RELEASE_REPRODUCIBILITY=PASS/UNPROVEN
 ```
 

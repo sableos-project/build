@@ -1,118 +1,139 @@
 # SableOS build tooling
 
-Host-side source assembly, trusted Android build orchestration, reproducibility checks, product-wiring proof and evidence tooling for SableOS.
+Host-side source assembly, trusted application builds, Android build orchestration, reproducibility checks, product-wiring proof and evidence tooling for SableOS.
 
-This repository answers **how SableOS source/artifacts are assembled, integrated, built and validated**. Application implementation belongs in application-owned source/workspaces; exact OS source composition belongs in `platform_manifest`.
+This repository answers **how SableOS source/artifacts are qualified, frozen, integrated, built and validated**. Application implementation belongs in application-owned source/workspaces; exact OS source composition belongs in `platform_manifest`.
 
-## Current R8 execution split
-
-SableOS now separates two processes deliberately:
+## Current R8 execution model
 
 ```text
-PROCESS A — standalone application qualification
-  GitHub/local Cargo + Gradle + upstream app workflows
-  tests / static / security / APK/native build / artifact seal
-
-PROCESS B — trusted SableOS integration
-  exact frozen application artifacts + trusted Sable source
-  product import/wiring proof
-  Android/Soong integration
-  Panther image build
-  device evidence
+A1 — disposable qualification
+GitHub/local Rust + Kotlin + Gradle + static/security
+        |
+        v
+A2 — trusted standalone app build
+ai-g732, pinned toolchains, APK/JNI provenance + 16 KiB checks
+        |
+        v
+exact trusted R8 app freeze
+        |
+        v
+B1 — pre-image Soong/product integration proof
+        |
+        v
+B2 — Panther development image + runtime campaign
+        |
+        v
+B3 — Titan 2 portability image + runtime campaign
+        |
+        v
+later production-signing workstream
 ```
 
-This repository primarily owns **Process B** and the reproducibility/evidence rules joining the two processes. It may also provide generic gate helpers used by Process A, but the Panther tree is not the everyday compiler for R8 applications.
+The Android tree is not the everyday compiler for R8 applications.
 
 ## Current host transition
 
-The next R8 Panther image is intended to build on **`ai-g732`** after its expanded-storage environment and transferred source/tool/output state pass a migration seal.
-
 ```text
-GitHub hosted     = disposable application/static/security qualification
-ai-g732           = intended sable-builder-01 for R8 trusted Android/product builds
-thinkpad-p50      = legacy/reference builder and historical evidence source
-Pixel 7 / panther = sable-device-01
-OptiPlex          = sable-signer-01
+GitHub hosted     = disposable/untrusted A1 CI
+ai-g732           = intended trusted A2/B1/B2/B3 development builder
+thinkpad-p50      = historical/reference builder during migration;
+                    future production-signing-host candidate only
+Pixel 7 / panther = primary R8 runtime target
+Titan 2           = second R8 portability/runtime target
 ```
 
-Do not copy ThinkPad-specific absolute paths into generic orchestration. Host/profile configuration must bind the actual `ai-g732` storage/workspace layout after migration.
+OptiPlex is no longer part of the signing plan. Production AVB/OTA/application signing is deferred until Panther and Titan 2 development qualification is satisfactory.
+
+Do not copy ThinkPad-specific absolute paths into generic orchestration. `ai-g732` host/profile configuration must bind the actual storage/workspace layout after migration.
 
 ## Build-tooling goals
 
 - explicit authorization for network, source mutation, build, device contact, Git mutation and destructive operations;
-- stable profile-driven entry points instead of milestone-specific shell fragments;
-- source/artifact identities sealed before build execution;
+- fast A1 feedback separated from trusted A2 artifact production;
+- trusted app artifacts sealed before Android integration;
 - product-selection/PRODUCT_OUT/target-files/image/runtime claims kept separate;
-- exact qualified APK/native artifact inputs tracked when the image consumes standalone-built applications;
-- build outputs and evidence stored outside canonical source;
+- exact DEX/JNI inner-content identities tracked where APK containers can legitimately change;
+- verified 16 KiB compatibility for native R8 libraries;
+- isolated OUT_DIR per target/materially different variant;
 - no implicit clean/clobber/delete on failure;
 - storage preflight/monitoring for long Android builds;
-- clean reconstruction without workspace-only source or opaque local APKs;
-- CI trust separation between disposable app runners, trusted image builder, device lab and signer.
+- filesystem-aware image inspection (do not assume ext4/debugfs);
+- clean reconstruction without workspace-only source or opaque local APKs.
 
 ## Recommended layout
 
-Exact roots are host/profile-specific. Conceptually keep:
+Conceptually keep:
 
 ```text
 source repos / manifest checkouts
 upstream Android substrate
-qualified external application artifacts
-build output / OUT_DIR
+trusted standalone application artifacts
+build output / isolated OUT_DIRs
 evidence / logs / seals
 pinned host tools
 ```
 
 See [`docs/BUILD_LAYOUT.md`](docs/BUILD_LAYOUT.md).
 
-## Product-build rule
+## Pre-image gate
 
-Before a full image build:
+Before a full development image build:
 
-1. app/source qualification required for the tranche is green;
-2. exact application inputs are frozen;
-3. the selected Android 17/GrapheneOS prebuilt/import mechanism is proven;
-4. target product/release/variant/Build ID is resolved;
-5. source/artifact/host identities are sealed;
-6. storage has sufficient margin and a monitoring/abort policy;
-7. mutation/network/device boundaries are explicit.
+1. A1 source/application qualification required for the tranche is green;
+2. A2 trusted app build/seal passes on `ai-g732`;
+3. exact app inputs are frozen;
+4. selected Android 17/GrapheneOS import mechanism is proven;
+5. signing/JNI/dexpreopt/uses-library processing is recorded;
+6. product selection is proven separately;
+7. PRODUCT_OUT installation is proven separately;
+8. exact target product/release/variant/Build ID is resolved;
+9. host/storage/source/tool identities are sealed;
+10. storage has adequate margin and monitoring/abort policy.
 
-Then build once and preserve evidence.
+Read [`docs/R8_PREIMAGE_GATE.md`](docs/R8_PREIMAGE_GATE.md).
 
-A broad target such as `target-files-package` must not be assumed cheap; inspect graph/dry-run behavior before treating it as a low-cost gate.
+A broad target such as target-files must not be assumed cheap; use graph/dry-run evidence first.
+
+## R8 tooling
+
+- [`gates/r8_app_artifact_audit.sh`](gates/r8_app_artifact_audit.sh) — read-only whole-APK/DEX/JNI/native-alignment audit.
+- [`gates/r8_app_artifact_audit_selftest.sh`](gates/r8_app_artifact_audit_selftest.sh) — host-only fixture/self-test.
+- [`docs/R8_BUILD_ENGINEER_REVIEW.md`](docs/R8_BUILD_ENGINEER_REVIEW.md) — concise second-eye review brief.
+- [`docs/R8_PREIMAGE_GATE.md`](docs/R8_PREIMAGE_GATE.md) — normative trusted-artifact/pre-image boundary.
+
+The artifact audit intentionally does **not** claim package-manifest semantics, Soong import, product selection, target-files/image or runtime proof.
 
 ## Core documentation
 
-- [`docs/ANDROID_PRODUCT_BUILD_PLAYBOOK.md`](docs/ANDROID_PRODUCT_BUILD_PLAYBOOK.md) — target resolution, product-wiring ladder, qualified APK integration and long-build procedure.
-- [`docs/CI_EXECUTION_MODEL.md`](docs/CI_EXECUTION_MODEL.md) — disposable app CI vs trusted product build/device/signing execution.
-- [`docs/MILESTONE_EVIDENCE_GATES.md`](docs/MILESTONE_EVIDENCE_GATES.md) — bounded claim/evidence gates including current R8 Process A/B closure.
-- [`docs/BUILD_LAYOUT.md`](docs/BUILD_LAYOUT.md) — source/output/evidence/tool separation.
-- [`docs/REPRODUCIBILITY.md`](docs/REPRODUCIBILITY.md) — source plus sealed external artifact reproducibility.
-- [`docs/AUTHORIZATION_MODEL.md`](docs/AUTHORIZATION_MODEL.md) — operation-class authorization.
-- [`docs/CI_STATUS_20260911.md`](docs/CI_STATUS_20260911.md) — **historical dated CI snapshot**, not current status.
+- [`docs/ANDROID_PRODUCT_BUILD_PLAYBOOK.md`](docs/ANDROID_PRODUCT_BUILD_PLAYBOOK.md)
+- [`docs/CI_EXECUTION_MODEL.md`](docs/CI_EXECUTION_MODEL.md)
+- [`docs/MILESTONE_EVIDENCE_GATES.md`](docs/MILESTONE_EVIDENCE_GATES.md)
+- [`docs/REPRODUCIBILITY.md`](docs/REPRODUCIBILITY.md)
+- [`docs/AUTHORIZATION_MODEL.md`](docs/AUTHORIZATION_MODEL.md)
 
-Historical Panther/ThinkPad observations remain useful reference evidence in the playbook. They must not be mistaken for a requirement to keep future image builds on the old host.
+Historical Panther/ThinkPad observations remain useful reference evidence but do not require future broad builds to stay on the old host.
 
 ## Ownership boundary
 
 ```text
 platform_manifest
-    exact OS source composition + external artifact provenance references
+    exact OS source composition + external artifact provenance
 
 application source/workspaces
-    standalone source/build/dependency/test authority
+    app source/dependency/test authority
 
 platform_sable
     shared semantic/design/application contracts
 
 vendor_sable
-    common product integration/selection of qualified apps
+    common imported modules + common qualified app selection
 
 device_sable_<target>
     bounded target adapter/runtime qualification
 
 build
-    orchestration, reconstruction, product-wiring proof and evidence
+    trusted app build, Android build, product-wiring proof and evidence
 ```
 
-Build tooling enforces documented architecture. It does not invent product semantics, application permissions, default-app choices or device-specific policy.
+Build tooling enforces documented architecture. It does not invent product semantics, privileges, default-app choices or device-specific policy.
