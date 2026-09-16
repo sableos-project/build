@@ -21,6 +21,11 @@ NO_DEPS_REPACKAGE
   output/image mutation only
   separately authorized
   never dependency-closure proof
+
+DEVICE_TEST_STATE_MUTATION
+  device contact + temporary property mutation
+  separately authorized
+  must record and restore intended state
 ```
 
 ## 1. Generate graph
@@ -71,7 +76,48 @@ find "$OUT_DIR" -name module_bp_java_deps.json -print
 
 Inspect the matching module dependency entry. This is dependency evidence only; it does not prove product selection or image membership.
 
-## 6. Dexpreopt / uses-library metadata
+## 6. Capture effective page-size product/build variables
+
+Do not assume these values from a `BoardConfig.mk` grep. Query the effective product configuration after the exact target/release/variant environment is bound.
+
+Current Soong supports dumpvars mode, for example:
+
+```bash
+build/soong/soong_ui.bash --dumpvars-mode \
+  --vars='PRODUCT_MAX_PAGE_SIZE_SUPPORTED PRODUCT_NO_BIONIC_PAGE_SIZE_MACRO PRODUCT_CHECK_PREBUILT_MAX_PAGE_SIZE TARGET_MAX_PAGE_SIZE_SUPPORTED TARGET_NO_BIONIC_PAGE_SIZE_MACRO TARGET_CHECK_PREBUILT_MAX_PAGE_SIZE'
+```
+
+Preserve the result in B1 evidence.
+
+For native R8 prebuilt acceptance, verify that the effective maximum supported page size is at least 16384 and that the platform prebuilt max-page-size check is enabled where the Android 17 target tree supports it.
+
+Do not normalize `ignore_max_page_size: true`, `LOCAL_IGNORE_MAX_PAGE_SIZE := true`, or disabling `PRODUCT_CHECK_PREBUILT_MAX_PAGE_SIZE` merely to make a failing prebuilt pass.
+
+## 7. Inspect final APK manifest page-size compatibility override
+
+Use the pinned Android Build Tools `aapt2`, not an unrelated host copy:
+
+```bash
+AAPT2=/absolute/path/to/pinned/aapt2
+APK=/absolute/path/to/frozen-or-processed.apk
+
+"$AAPT2" dump xmltree "$APK" --file AndroidManifest.xml \
+  | tee /tmp/r8_manifest_xmltree.txt
+
+grep -n 'pageSizeCompat' /tmp/r8_manifest_xmltree.txt || true
+```
+
+Interpretation:
+
+```text
+pageSizeCompat="enabled"   => FAIL for accepted native R8 APK
+attribute absent            => acceptable; runtime fail-closed test still required
+pageSizeCompat="disabled"  => acceptable only when intentional and recorded
+```
+
+Do not treat absence of the attribute as proof that Android's global compatibility mode is disabled.
+
+## 8. Dexpreopt / uses-library metadata
 
 Discover rather than guess paths:
 
@@ -91,7 +137,7 @@ dexpreopt enabled/disabled state
 
 Do not require nonexistent properties such as `dex_preopt.copy_files` unless the exact target-tree schema actually defines them.
 
-## 7. Narrow module build
+## 9. Narrow module build
 
 Only after ordinary A1/A2 application failures are already closed:
 
@@ -101,7 +147,7 @@ m "$MODULE"
 
 This proves only the module/import build boundary and its generated outputs. It does not by itself prove PRODUCT_PACKAGES selection.
 
-## 8. PRODUCT_OUT proof
+## 10. PRODUCT_OUT proof
 
 Resolve `$ANDROID_PRODUCT_OUT` from the active build environment and inspect the exact expected install path, for example:
 
@@ -112,7 +158,7 @@ sha256sum "$ANDROID_PRODUCT_OUT"/<resolved-path>/<app>.apk
 
 Record the discovered path; do not hard-code `/system/app` before the module configuration proves the partition.
 
-## 9. Optional `snod` experiment
+## 11. Optional `snod` experiment
 
 If PRODUCT_OUT is already known current and a quick system-image repackaging experiment is specifically authorized:
 
@@ -124,7 +170,7 @@ or the target-tree equivalent.
 
 `snod` deliberately ignores ordinary dependencies. With dexpreopt enabled, AOSP warns that a full rebuild may be needed. Therefore its result is only packaging evidence from the existing PRODUCT_OUT state.
 
-## 10. Native artifact audit
+## 12. Native artifact audit
 
 Use the repository gate against the trusted A2 APK or discovered processed APK:
 
@@ -139,7 +185,9 @@ bash gates/r8_app_artifact_audit.sh
 
 The exact Android/NDK tools should come from the pinned A2/B1 toolchain rather than the host distribution for accepted evidence.
 
-## 11. Page-size runtime evidence
+When comparing A2 vs processed APKs, hash extracted member byte streams (for example `unzip -p`) for `classes*.dex` and native `.so` identity. Do not compare ZIP local-header offsets/order as if they were application-code identity.
+
+## 13. Page-size runtime evidence
 
 After device contact is separately authorized:
 
@@ -153,7 +201,21 @@ adb shell getprop ro.product.build.16k_page.enabled
 
 The developer-option property does not prove the current kernel page size; `getconf`/runtime evidence does.
 
-## 12. SELinux review
+### Android 17 fail-closed compatibility test
+
+On a 16 KiB-running development target, and only with explicit device/test-state mutation authorization, temporarily force incompatible binaries to abort instead of entering page-size backcompat mode:
+
+```bash
+adb shell getprop bionic.linker.16kb.app_compat.enabled
+adb shell getprop pm.16kb.app_compat.disabled
+
+adb shell setprop bionic.linker.16kb.app_compat.enabled fatal
+adb shell setprop pm.16kb.app_compat.disabled true
+```
+
+Run the bounded JNI/application test, record the result, then restore the intended prior development-device property state. These commands are validation-state mutation, not a shipping configuration recommendation.
+
+## 14. SELinux review
 
 Do not create a custom policy merely because an APK is under `/system/app`.
 
@@ -170,6 +232,6 @@ privapp-permissions XML
 
 The normal R8 default is ordinary app sandboxing with no new custom domain.
 
-## 13. Fresh-output decision
+## 15. Fresh-output decision
 
 Never automate `m clean`/clobber from this reference. If incremental correctness becomes doubtful after a major Soong/toolchain/source-policy transition, preserve the current OUT_DIR and create a fresh isolated OUT_DIR when the claim requires it.
