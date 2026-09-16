@@ -18,7 +18,7 @@ printf 'not-an-elf-fixture\n' > "$TMP/apk/lib/arm64-v8a/libfixture.so"
 
 APK="$TMP/fixture.apk" \
 EVIDENCE_DIR="$TMP/evidence" \
-"$ROOT/gates/r8_app_artifact_audit.sh" > "$TMP/run.log" 2>&1
+bash "$ROOT/gates/r8_app_artifact_audit.sh" > "$TMP/run.log" 2>&1
 
 grep -Fx 'R8_APP_ARTIFACT_NATIVE_ABIS=arm64-v8a' "$TMP/run.log" >/dev/null
 grep -Fx 'R8_APP_ARTIFACT_ELF_16K_COMPATIBILITY=NOT_TESTED' "$TMP/run.log" >/dev/null
