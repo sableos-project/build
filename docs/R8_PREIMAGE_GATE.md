@@ -50,6 +50,7 @@ Rust toolchain + Cargo.lock hash
 APK SHA-256
 package/version
 manifest permissions/components
+manifest android:pageSizeCompat state
 classes*.dex extracted-content SHA-256
 lib/<abi>/*.so extracted-content SHA-256
 native ABI inventory
@@ -63,6 +64,20 @@ R8 native libraries must be compatible with 16 KiB page-size systems. The gate r
 
 Source/dependency review must also look for hard-coded page-size assumptions in native code actually built. A `Cargo.lock` text grep alone is not proof. Runtime execution on a 16 KiB-capable/16 KiB-running target remains the decisive behavioral evidence.
 
+### `android:pageSizeCompat` guardrail
+
+Android 17 can run some misaligned applications in 16 KiB backcompat mode. That behavior must not hide R8 native-alignment defects.
+
+For every accepted R8 APK containing native code, inspect the **final merged APK manifest**, not only a source manifest. Apply this rule:
+
+```text
+android:pageSizeCompat="enabled"   => FAIL
+attribute absent                    => acceptable; runtime fail-closed testing still required
+android:pageSizeCompat="disabled"  => acceptable only when intentional and recorded
+```
+
+Do not require `disabled` merely to satisfy this gate. The preferred default is no compatibility override unless a documented reason requires one. Runtime validation must independently prove native loading without relying on the compatibility wrapper.
+
 ## B1 pre-image sequence
 
 1. Bind exact target product/release/variant and isolated OUT_DIR.
@@ -70,19 +85,40 @@ Source/dependency review must also look for hard-coded page-size assumptions in 
 3. Discover the exact generated Ninja/Soong outputs for the imported module.
 4. Query the module/target edge and, where supported, Ninja `-t inputs` to prove the frozen A2 APK is a hard graph input.
 5. Inspect `module_bp_java_deps.json` when the target tree generates it; use it as dependency evidence, not as product-selection proof.
-6. Record signing/certificate configuration and whether the module is presigned, resigned or otherwise processed.
-7. Record JNI processing and dexpreopt/uses-library configuration, including `uses_libs`, `optional_uses_libs`, enforcement state and `dexpreopt.config` where generated.
-8. Audit SELinux implications. Ordinary `/system/app` placement does not by itself require a custom `file_contexts` rule. If a Sable app requires a custom process domain, privileged/system semantics or signer-based seinfo, inspect the relevant `mac_permissions.xml`, `seapp_contexts`, policy and file/property contexts explicitly.
-9. Build only the imported module / minimum required dependencies.
-10. Inspect the actual Soong intermediate APK discovered from the graph.
-11. Compare extracted classes*.dex and native .so hashes against the frozen artifact.
-12. Verify native libraries are stored/compressed consistently with the APK manifest/runtime extraction model and satisfy required ZIP/page alignment.
-13. Validate ELF 16 KiB compatibility and capture DT_NEEDED / unresolved-symbol inventory. Do not claim host `dlopen` execution of an ARM64 Android library on an unrelated x86 host.
-14. Prove product selection independently from module-build success.
-15. Prove concrete PRODUCT_OUT installation.
-16. When target-files are produced, prove target-files membership and content identity.
-17. Inspect the filesystem image with a filesystem-appropriate tool (for example ext4 vs EROFS); do not assume debugfs is universally valid.
-18. After device deployment, record runtime package path/certificate/JNI execution and page-size evidence separately.
+6. Record the effective page-size product/build variables for the selected target and release.
+7. Inspect the final APK manifest and reject `android:pageSizeCompat="enabled"` for accepted native R8 apps.
+8. Record signing/certificate configuration and whether the module is presigned, resigned or otherwise processed.
+9. Record JNI processing and dexpreopt/uses-library configuration, including `uses_libs`, `optional_uses_libs`, enforcement state and `dexpreopt.config` where generated.
+10. Audit SELinux implications. Ordinary `/system/app` placement does not by itself require a custom `file_contexts` rule. If a Sable app requires a custom process domain, privileged/system semantics or signer-based seinfo, inspect the relevant `mac_permissions.xml`, `seapp_contexts`, policy and file/property contexts explicitly.
+11. Build only the imported module / minimum required dependencies.
+12. Inspect the actual Soong intermediate APK discovered from the graph.
+13. Compare extracted classes*.dex and native .so byte streams against the frozen artifact. ZIP order, local-header offsets and container metadata are not code identity.
+14. Verify native libraries are stored/compressed consistently with the APK manifest/runtime extraction model and satisfy required ZIP/page alignment.
+15. Validate ELF 16 KiB compatibility and capture DT_NEEDED / unresolved-symbol inventory. Do not claim host `dlopen` execution of an ARM64 Android library on an unrelated x86 host.
+16. Prove product selection independently from module-build success.
+17. Prove concrete PRODUCT_OUT installation.
+18. When target-files are produced, prove target-files membership and content identity.
+19. Inspect the filesystem image with a filesystem-appropriate tool (for example ext4 vs EROFS); do not assume debugfs is universally valid.
+20. After device deployment, record runtime package path/certificate/JNI execution and page-size evidence separately.
+
+## Page-size product/build evidence
+
+Do not infer effective page-size configuration merely from a `BoardConfig.mk` grep. Current AOSP exposes relevant product variables through product configuration and derives target variables from them.
+
+Capture the effective values for each selected Panther/Titan product/release using the target tree's dumpvars path:
+
+```text
+PRODUCT_MAX_PAGE_SIZE_SUPPORTED
+PRODUCT_NO_BIONIC_PAGE_SIZE_MACRO
+PRODUCT_CHECK_PREBUILT_MAX_PAGE_SIZE
+TARGET_MAX_PAGE_SIZE_SUPPORTED
+TARGET_NO_BIONIC_PAGE_SIZE_MACRO
+TARGET_CHECK_PREBUILT_MAX_PAGE_SIZE
+```
+
+For R8 native-prebuilt acceptance, the effective configuration must support at least 16 KiB ELF segment alignment. On Android 16+ trees supporting the check, keep the prebuilt max-page-size verification enabled rather than bypassing it with `ignore_max_page_size` or an equivalent exemption.
+
+Any exemption from the platform prebuilt check is a separate reviewed exception, not a normal integration mechanism.
 
 ## Page-size runtime evidence
 
@@ -99,6 +135,17 @@ ro.product.build.16k_page.enabled           only as the developer-option capabil
 ```
 
 `ro.product.build.16k_page.enabled` does not itself prove the kernel is currently running at 16 KiB.
+
+### Fail-closed Android 17 runtime test
+
+When device state mutation is separately authorized, an Android 17 16 KiB runtime campaign may temporarily disable page-size backcompat globally so incompatible binaries fail immediately instead of being masked by compatibility mode:
+
+```text
+bionic.linker.16kb.app_compat.enabled=fatal
+pm.16kb.app_compat.disabled=true
+```
+
+Treat this as a **test-state mutation**, not normal product configuration. Record the before/after property state and restore the intended development-device state after the bounded test. Passing the static A2/B1 alignment gate does not replace this runtime proof.
 
 ## `snod` policy
 
@@ -157,6 +204,8 @@ same qualified common app source/artifacts
 | Android ABI | `arm64-v8a` | `arm64-v8a` |
 | Rust target | `aarch64-linux-android` | `aarch64-linux-android` |
 | 16 KiB native compatibility | required | required |
+| page-size compat wrapper | must not mask failure | must not mask failure |
+| effective product page-size vars | recorded | recorded |
 | frozen common app artifact | same where compatible | same where compatible |
 | common product composition | `vendor_sable` | `vendor_sable` |
 | device adapter | Panther-specific | Titan-specific |
