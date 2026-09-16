@@ -1,38 +1,31 @@
 # SableOS CI execution model
 
-Status: **normative implementation guidance for CI/build/device/signing execution.**
+Status: **normative implementation guidance for CI/build/device and later signing execution.**
 
 This document implements `sableos-project/.github/docs/CI_TRUST_ARCHITECTURE.md`.
 
-## Infrastructure roles during the R8 transition
+## Current infrastructure roles
 
 ```text
-GitHub hosted     = disposable/untrusted application/static/security CI
-ai-g732           = intended sable-builder-01 for trusted Android/product builds
-thinkpad-p50      = legacy/reference builder and historical evidence source
-Pixel 7 / panther = sable-device-01
-OptiPlex          = sable-signer-01
+GitHub hosted     = disposable/untrusted A1 application/static/security CI
+ai-g732           = intended trusted A2/B1/B2/B3 development builder
+thinkpad-p50      = historical/reference builder during migration;
+                    future production-signing-host candidate only
+Pixel 7 / panther = primary R8 runtime target
+Titan 2           = second R8 portability/runtime target
 ```
 
-`ai-g732` becomes the active trusted builder only after its new storage/source/tool/output environment passes the migration preflight. The role name is stable; the physical host transition must be explicit in evidence.
+There is no active signing appliance yet. OptiPlex is removed from the current plan. Production signing is deferred until development qualification is satisfactory on Panther and Titan 2.
 
 ## C0 — repository/policy checks
 
-Fast disposable checks may validate:
+Fast disposable checks may validate repository/workflow structure, immutable Action pins, least privilege, syntax/configuration, secret/private-key heuristics and documentation/reference consistency. No trusted AOSP workspace/device/signing access.
 
-- repository/workflow structure;
-- pinned/least-privilege workflow policy;
-- syntax/configuration;
-- secret/private-key heuristics;
-- documentation/reference consistency where practical.
-
-No trusted AOSP workspace/device/signing access.
-
-## C1 — standalone R8 application qualification
+## C1 / A1 — disposable application qualification
 
 C1 runs on GitHub-hosted disposable runners and is the normal feedback loop for independently developed R8 applications.
 
-Current lanes should remain separately diagnosable:
+Keep lanes independently diagnosable:
 
 ```text
 Rust correctness
@@ -43,197 +36,176 @@ Reader compile/tests
 Reader policy/static
 Text Reader compile/tests
 Text Reader policy/static
-APK artifact seal
+qualification artifact seal
 ```
 
-C1 may use public dependency networks as the app workflow declares, but it must not possess production signing material, persistent trusted build state or device authority.
+Expected outputs include exact source/upstream identities, dependency/provenance inventory, package/manifest/component state, native ABI inventory, APK hashes and workflow/run identity.
 
-Expected outputs include as applicable:
+A1 success never proves trusted artifact identity or SableOS product integration.
+
+## C1.5 / A2 — trusted standalone app build on ai-g732
+
+A2 consumes exact accepted source and rebuilds outside the AOSP product graph using pinned/recorded toolchains.
+
+Record:
 
 ```text
-source_commit.txt
-upstream_pin.txt
-qualification_result.txt
-dependency_inventory.txt
-manifest_permissions.txt
-package_components.txt
-native_abi_inventory.txt
-APK_SHA256SUMS.txt
-qualification APK artifact
-workflow/run identity
+source/upstream commits
+Gradle/JDK/SDK/NDK/Rust identities
+lockfile hashes
+trusted APK SHA-256
+package/version/permissions/components
+classes*.dex extracted-content hashes
+JNI .so extracted-content hashes
+native ABI inventory
+16 KiB ELF compatibility
+APK native-library ZIP alignment
 ```
 
-A green C1 application build does not prove SableOS product/image integration.
+Where reproducible, compare A1/A2 outputs. Unexplained divergence blocks the trusted freeze until understood.
 
-### Reader/upstream qualification
+A2 is allowed to repeat as accepted source changes. It is much cheaper than a broad Android image build.
 
-External reuse sources are checked out at exact commits. Deterministic Sable flavor/overlay/patch logic is version-controlled in the qualification source.
+## C2 / B1 — trusted pre-image Android integration
 
-Initial R8 upstreams include:
+B1 runs on `ai-g732` only against exact frozen A2 inputs and trusted Sable source.
+
+Use B1 for Android properties standalone Gradle/Cargo cannot prove:
+
+- exact `android_app_import` or equivalent module behavior;
+- input artifact identity;
+- certificate/signing mode;
+- JNI uncompression/layout/processing;
+- dexpreopt and uses-library behavior;
+- generated Soong/Ninja dependencies;
+- product selection;
+- concrete PRODUCT_OUT install path;
+- bounded framework/resource/JNI integration.
+
+Required high-level sequence:
 
 ```text
-vaachak-mobile      5393503ec0695e87e0a9bc4567fec0fea110ea4d
-vaachak-textreader  50fca365baae9869264716569830690fb62029a7
+bind target + isolated OUT_DIR
+ -> generate Soong graph without broad compile where supported
+ -> discover/query exact module edges
+ -> build minimum import dependencies
+ -> inspect actual intermediate APK/output paths
+ -> compare DEX/JNI inner-content hashes to A2 freeze
+ -> prove product selection separately
+ -> prove PRODUCT_OUT separately
 ```
 
-A branch name is not an accepted freeze identity.
+Read `R8_PREIMAGE_GATE.md` for the detailed boundary.
 
-## C1.5 — integration-freeze aggregation
+Do not use B1 to discover ordinary Kotlin/Rust compile failures covered by A1/A2.
 
-Before trusted product integration, aggregate the selected green application lanes into an exact freeze manifest.
+## C3 / B2 — Panther development image
 
-For every accepted input record:
+After A1/A2/freeze/B1 close for the selected tranche, run the normal Panther development image build.
+
+Before execution record host/storage/workspace/manifest identity, frozen application inputs, exact target/release/variant/lunch/Build ID, OUT/evidence roots, network/build authorization, free-space floor/monitoring and existing-build state.
+
+Expected evidence includes build logs/result, product package evidence, target-files/image inventory, artifact hashes and gate report.
+
+## C3P / B3 — Titan 2 portability development image
+
+After Panther acceptance, repeat product integration/image work for Titan 2 with a separate OUT_DIR and the same common frozen application artifacts wherever compatible.
+
+The portability claim must demonstrate:
 
 ```text
-source/upstream commit(s)
-workflow/run
-package ID + version
-APK/native artifact SHA-256
-permissions/exported components
-native ABIs/libraries
-third-party dependency/provenance inventory
-accepted feature-policy boundary
-known limitations
+same common app source/artifacts
+same common vendor_sable product integration
+bounded Titan-specific adapter
+no common application fork
+runtime acceptance for Titan-specific input/layout/platform differences
 ```
 
-A source workstream may be explicitly deferred instead of weakening the gate.
+Titan-specific secondary-display/program-key/FM features are outside current common R8 requirements unless separately approved.
 
-Changing a frozen application artifact reopens downstream integration evidence for that artifact.
+## ai-g732 activation
 
-## C2 — trusted product-wiring / narrow Android integration
-
-C2 runs only on the trusted builder and only against explicitly approved exact input identities.
-
-Use C2 for Android properties that standalone Gradle/Cargo cannot prove, including:
-
-- exact prebuilt/import module semantics;
-- signing/partition/native-library behavior of the selected module type;
-- product package selection;
-- PRODUCT_OUT install path;
-- installed-files/target-files wiring;
-- framework/platform API/resource integration;
-- JNI installation/linkage when Android product packaging matters;
-- bounded Soong/module builds required by the product architecture.
-
-`android_app_import` is a candidate mechanism until C2 proves the exact Android 17/GrapheneOS behavior required by SableOS.
-
-Do not use C2 to discover ordinary Kotlin/Rust compile failures already covered by C1.
-
-## C3 — trusted Panther image / clean reconstruction
-
-C3 performs the normal Android product build or clean reconstruction claim.
-
-Before execution record:
+Before using `ai-g732` as the trusted builder prove:
 
 ```text
-host/storage identity
-workspace/source/manifest identity
-frozen external application-input identity
-target product/release/variant/lunch invocation
-expected/resolved Build ID
-OUT/evidence roots
-network/fetch authorization
-free-space floor/monitoring policy
-existing build-process state
-clean/clobber/delete authorization
+host identity
+filesystem/new-storage identity
+source repository identities
+workspace/output/evidence roots
+isolated per-target OUT_DIR policy
+toolchain prerequisites
+free-space floor + monitoring
+network/build authorization
+expected target/release/variant/Build ID
+exact frozen app inputs + hashes
+absence of accidental ThinkPad-only path/local-state dependency
 ```
 
-Expected evidence includes:
+Do not clean the historical ThinkPad workspace merely because migration succeeds unless cleanup is separately authorized.
+
+## Native 16 KiB gate
+
+Every R8 APK containing native libraries must pass verified 16 KiB compatibility.
+
+The trusted artifact/integration evidence should cover:
 
 ```text
-source_identity.txt
-external_artifact_inputs.txt
-build_environment.txt
-build.log
-build_result.txt
-artifact_inventory.txt
-installed/product package evidence
-target-files/image inventory
-SHA256SUMS.txt
-gate_report.txt
+ELF PT_LOAD alignment >= 0x4000
+APK ZIP alignment suitable for uncompressed native libraries
+runtime page size measured on accepted devices
+representative JNI execution
 ```
 
-### ai-g732 activation
+The implementation mechanism follows the pinned NDK/toolchain; do not hard-code a linker flag when the selected toolchain already produces compliant output.
 
-For the first R8 build after moving to the new 4 TB storage, C3 must additionally prove the migration itself did not introduce:
+## Device campaigns
 
-- source revision drift;
-- incomplete repository transfer;
-- stale absolute-path assumptions;
-- missing host tools;
-- unexpected dependency on old ThinkPad-only local state;
-- inadequate free-space margin;
-- ambiguous OUT/evidence ownership.
+Device contact and mutation remain separately authorized.
 
-Do not clean the historical ThinkPad workspace merely because migration succeeded unless cleanup is separately authorized.
+### Panther
 
-## C4 — Panther device lab
+Validate exact accepted image/package identities, launcher/role behavior, R8-A appearance, Calculator/Convert/Games interactions, one Reader identity/capability set, Media local-vs-network boundaries, permissions/AppOps/system intents and required R7 regressions.
 
-C4 consumes an exact hash-identified C3 image/artifact and requires independent device authorization.
+### Titan 2
 
-Automatable evidence may include:
+In addition, explicitly validate physical-keyboard focus/navigation/text entry, square-display layout, runtime page size, Reader OCR/TTS capability and Media3/audio behavior.
 
-- build fingerprint/product/API/SPL;
-- installed package/component identity;
-- launcher inventory/launch;
-- permissions/AppOps;
-- role/default-handler state;
-- focused logs;
-- screenshots/semantic UI tests;
-- cross-app storage/media behavior;
-- theme/design integration;
-- reboot persistence when reboot is authorized.
+## Production signing — deferred
 
-Calls/SMS/MMS/carrier behaviors may require human observation or a second endpoint; record those boundaries honestly.
+Production signing is **not** a current C-stage in the R8 development critical path.
 
-## C5 — release/signing
+Only after Panther and Titan 2 development qualification is satisfactory should a separate release-signing program define production APK keys, AVB hierarchy, OTA signing, `sign_target_files_apks`, key custody/backup/recovery/rotation and sealed artifact handoff.
 
-`sable-signer-01` is never a general CI/build host.
+The ThinkPad P50 is a future signing-host candidate only. It must not be called `sable-signer-01` until commissioned.
 
-It accepts only an approved release candidate plus expected source/manifest/external-artifact/image hashes, verifies identity locally, signs, and emits signing provenance/checksums.
-
-Production signing material is not present on C1/C2/C3 infrastructure.
+Production signing material must not be present on C1/A1 or the ordinary trusted development builder.
 
 ## Workflow supply-chain rules
 
-Trusted/release-critical workflows should converge on:
-
-- immutable third-party Action pins;
-- least-privilege permissions;
-- explicit timeouts;
-- concurrency cancellation for replaceable PR jobs;
-- no secrets exposed to untrusted fork code;
-- diagnostic artifacts where useful;
-- explicit tool/dependency versions;
-- no mutable cross-repository workflow refs in trusted paths;
-- explicit network/offline behavior.
+Trusted/release-critical workflows should converge on immutable third-party Action pins, least privilege, explicit timeouts, replaceable-job concurrency cancellation, no secrets to untrusted fork code, diagnostic artifacts where useful, explicit tool/dependency versions and declared network/offline policy.
 
 ## Cache rules
 
-- C1 caches are untrusted convenience data.
-- A C1 artifact becomes a product candidate only by exact sealed identity, not because it came from a cache.
-- C2/C3 trusted caches are isolated from untrusted PR runners.
-- clean/reconstruction gates can invalidate/bypass caches when the claim requires it.
-- C5 trusts verified hashes/provenance, not build caches.
+- A1 caches are untrusted convenience data.
+- A2/B1/B2/B3 caches remain isolated from arbitrary PR execution.
+- reconstruction gates can bypass/invalidate caches when required.
+- cache presence never establishes artifact identity.
 
 ## Failure handling
 
-A failure in one lane must not be hidden by success in another.
-
-Examples:
+Preserve bounded success and classify the failing layer:
 
 ```text
-RUST_TEST=PASS
-ANDROID_APK_BUILD=FAIL
-=> application qualification FAIL
-
-APP_QUALIFICATION=PASS
-PRODUCT_IMPORT=FAIL
-=> application source remains qualified; product integration FAIL
-
-ANDROID_BUILD=PASS
-REQUIRED_SABLE_APP_IN_IMAGE=FAIL
-=> Android build PASS; Sable product closure FAIL
+A1_SOURCE_TEST
+A2_TRUSTED_APP_BUILD
+A2_NATIVE_16K
+B1_SOONG_IMPORT
+B1_PRODUCT_SELECTION
+B1_PRODUCT_INSTALL
+B2/B3_IMAGE_PACKAGING
+HOST_ENVIRONMENT
+STORAGE
+RUNTIME
 ```
 
-Preserve the strongest bounded claim without promoting it beyond the evidence.
+Do not automatically clean/clobber/delete/rerun. Fix the root cause and rerun the narrowest valid target while preserving useful evidence.
