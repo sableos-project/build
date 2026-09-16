@@ -1,85 +1,173 @@
 # Reproducibility policy
 
-SableOS distinguishes source reproducibility from byte-for-byte artifact reproducibility.
+Status: **normative reproducibility/provenance policy.**
 
-## Source reproducibility
-
-A validated source composition must be reconstructible from:
-
-- a revision-pinned platform manifest;
-- exact Sable repository commits;
-- documented upstream release/tag identity;
-- documented vendor/BSP acquisition steps and hashes when inputs cannot be redistributed;
-- pinned build configuration.
-
-A successful build from a workspace with manually supplied source is evidence about that workspace, not by itself proof of complete source reconstruction.
-
-## Build-target reproducibility
-
-For Android product builds, record target configuration as an explicit tuple rather than only a product name or a historical two-part lunch string.
-
-Record at least:
+SableOS distinguishes several related but different claims:
 
 ```text
-exact lunch invocation
-TARGET_PRODUCT
-release configuration supplied to lunch, when applicable
-TARGET_BUILD_VARIANT
-resolved BUILD_ID
-upstream/substrate release identity
+source composition reproducibility
+standalone application reproducibility
+product integration reproducibility
+artifact byte reproducibility
+runtime/release reproducibility
 ```
 
-Android 17 supports product/release/variant lunch selection. Do not assume `<product>-<variant>` remains valid.
+Do not use one as a substitute for another.
 
-Do not use `get_build_var TARGET_RELEASE` as the sole proof of release selection. A tree may accept a release-qualified lunch invocation while that variable is empty. Preserve the exact lunch command and verify the resulting product, variant, release-dependent inputs, and build ID.
+## 1. OS source composition
 
-If the substrate supplies product-specific values such as `BUILD_ID_<product>`, record how those values enter the environment. Do not manually override `BUILD_ID` merely to bypass a product guard. A derived Sable product must have an intentional, documented build-ID/release mapping before it can be treated as reproducible.
+A reproducible Android build starts from an explicit upstream/substrate identity plus exact Sable-owned repository revisions.
 
-## Generated vendor/substrate inputs
+The authoritative source-composition layer is `platform_manifest`.
 
-When vendor/device inputs are generated, record:
+A clean reconstruction must not depend on:
 
-- generator/tool repository and exact revision;
-- source/vendor specification identity;
-- generated target/product identity;
-- required external factory/vendor input identity and hashes where applicable;
-- whether the generated tree is expected to be byte-stable;
-- proof that Sable changes were not hidden inside generated substrate output.
+- manual source copies;
+- untracked local manifests;
+- host-only symlinks;
+- uncommitted source;
+- branch tips without resolved commit identity;
+- historical workspace-only modules.
 
-Generated product files should be reproducible inputs, not canonical locations for common Sable product semantics.
+## 2. Standalone R8 application reproducibility
 
-## Host reproducibility
+R8 applications may intentionally keep their canonical build/dependency graph in Cargo/Gradle/upstream application tooling rather than reproducing that whole graph in Soong.
 
-Build tooling should record host OS, tool versions, container/base-image identity when used, Node/Rust/Java/Clang inputs that materially affect the build, and build number/date policy.
-
-Moving `latest` downloads or unrecorded branch heads are not acceptable release definitions.
-
-## Build-output and failure preservation
-
-A retained `OUT_DIR` is generated state, not source, but it can be important evidence. When a long product build succeeds and a later composition/artifact closure gate fails, preserve the output unless cleanup is separately authorized.
-
-Do not convert a post-build integration failure into a clean rebuild automatically. First classify whether the failure is source, compile, product-selection, install, image-composition, or runtime related. Incremental continuation may be preferable after a bounded configuration repair, but it does not replace a later clean reconstruction gate when that stronger claim is required.
-
-Record initial and final free-space observations for large builds when storage exhaustion is a realistic failure mode.
-
-## Artifact reproducibility
-
-Exact artifact hashes are valuable reference evidence, but a different host may introduce semantically irrelevant metadata differences. When exact hashes diverge, classify the delta rather than silently accepting it or assuming corruption.
-
-A full Android build success does not by itself prove that a required Sable package is selected into the product. Artifact closure must distinguish:
+For every accepted standalone application artifact record:
 
 ```text
-module known to build system
-module compile success
-generated install rules
-product selection
-installed PRODUCT_OUT artifact
-image incorporation
-runtime package state
+source repository + exact commit
+upstream/reuse repository + exact commit where applicable
+lock/dependency state
+compiler/JDK/Gradle/Rust/Android SDK identity as applicable
+qualification workflow/run
+build commands/variant
+package/application ID + version
+manifest permissions/components
+native ABI/library inventory
+APK SHA-256
+third-party dependency/provenance inventory
 ```
 
-Each later layer requires its own evidence.
+An APK with the same package name but a different hash is a different product-integration input unless a documented deterministic transformation explains the difference.
 
-## Release rule
+## 3. Sable adaptation of external sources
 
-A release candidate should bind source composition, build-target identity, build-environment identity, signing identity, resulting target-files/images, and validation evidence. Any change to those inputs creates a new release identity.
+For pinned sources such as Vaachak:
+
+```text
+exact upstream commit
++ exact Sable overlay/flavor/patch logic
++ exact build/dependency environment
+= qualified source identity
+```
+
+Do not document a branch name as sufficient provenance.
+
+If an upstream repository changes after the accepted pin, the new revision requires a new qualification run before it can replace the frozen input.
+
+## 4. Product integration reproducibility
+
+A reproducible SableOS image must record both:
+
+1. exact source composition; and
+2. exact qualified external application/artifact inputs when the build consumes prebuilts.
+
+For each imported application additionally record:
+
+```text
+artifact source/freeze record
+module/import declaration
+product selection owner
+install partition/path
+signing or build-time transformation behavior
+PRODUCT_OUT resulting hash
+installed-files/target-files/image identity
+```
+
+Do not claim the product was reconstructed solely from the Android source manifest when external sealed APKs were required and not represented by that provenance record.
+
+## 5. Source reproducibility versus byte reproducibility
+
+A source-reproducible build does not automatically produce byte-identical outputs if the build contains timestamps, nondeterministic archive ordering, signing state, generated metadata or toolchain/environment variability.
+
+Record byte reproducibility as a separate claim.
+
+Where byte identity is expected, compare hashes under equivalent build inputs/toolchains. Where deterministic byte identity is not currently guaranteed, preserve enough provenance to explain and validate intentional transformations.
+
+## 6. Build host identity
+
+The host is part of build evidence even when it should not become a semantic product dependency.
+
+The first R8 `ai-g732` build after storage migration must record:
+
+```text
+host/OS identity
+filesystem/storage identity
+workspace/output/evidence roots
+host toolchain identity
+source identities
+free-space state/policy
+network policy
+```
+
+This prevents accidental dependence on hidden ThinkPad-only state while avoiding hard-coding one host's absolute paths into generic scripts.
+
+## 7. Trusted toolchain and network
+
+Record the toolchain versions/configuration required by the claim.
+
+When a gate declares an offline/no-fetch build phase, dependency acquisition must complete before that phase and the no-network boundary must be enforced or honestly reported as unproven.
+
+A successful build that silently fetched an undeclared dependency does not satisfy an offline reconstruction claim.
+
+## 8. Build caches
+
+Caches are performance inputs, not provenance authorities.
+
+- disposable CI caches are untrusted convenience data;
+- trusted builder caches are isolated from arbitrary PR code;
+- clean/reconstruction gates must be able to bypass/invalidate caches when necessary;
+- an artifact's accepted identity comes from source/tool/input/output evidence, not cache presence.
+
+## 9. Evidence package
+
+A strong reconstruction/reproducibility evidence set records:
+
+```text
+platform_manifest/source identity
+external_artifact_inputs.txt
+host/build environment
+resolved target product/release/variant/Build ID
+build commands and result
+artifact inventory
+product/package install evidence
+SHA256SUMS
+known nondeterminism/transformations
+final gate report + seal
+```
+
+## 10. Signing/release
+
+Signing is a separate provenance stage. Reproducing an unsigned engineering image is not the same claim as reproducing a signed release package.
+
+A release record binds the approved pre-sign candidate hashes to signed outputs and signing identity/channel without exposing private signing material.
+
+## 11. Historical evidence
+
+Older ThinkPad/Panther builds remain useful reference evidence even after the trusted build host moves. Preserve historical source/build/artifact seals; do not mutate old records to fit a new workspace layout.
+
+## 12. Reproducibility closure rule
+
+Use precise language:
+
+```text
+SOURCE_RECONSTRUCTION=PASS
+STANDALONE_APP_REPRODUCIBILITY=PASS/UNPROVEN
+EXTERNAL_ARTIFACT_INPUT_BINDING=PASS/UNPROVEN
+PRODUCT_INTEGRATION_RECONSTRUCTION=PASS/UNPROVEN
+BYTE_REPRODUCIBILITY=PASS/UNPROVEN
+SIGNED_RELEASE_REPRODUCIBILITY=PASS/UNPROVEN
+```
+
+Only claim the layers actually demonstrated.
