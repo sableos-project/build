@@ -10,6 +10,7 @@ APK="${APK:-}"
 STAMP="${STAMP:-$(date +%Y%m%d_%H%M%S)}"
 EVIDENCE_DIR="${EVIDENCE_DIR:-/tmp/SABLE_R8_APP_ARTIFACT_AUDIT_${STAMP}}"
 LLVM_READELF="${LLVM_READELF:-}"
+LLVM_NM="${LLVM_NM:-}"
 ZIPALIGN="${ZIPALIGN:-}"
 EXPECTED_PACKAGE="${EXPECTED_PACKAGE:-}"
 
@@ -97,6 +98,7 @@ printf '%s\n' "===== NATIVE ELF 16K COMPATIBILITY ====="
 SO_COUNT=0
 ELF_CHECKED=0
 ELF_16K_PASS=0
+DYNAMIC_INSPECTED=0
 TMP_EXTRACT="$EVIDENCE_DIR/native_extract"
 mkdir -p "$TMP_EXTRACT"
 while IFS= read -r member; do
@@ -109,9 +111,8 @@ while IFS= read -r member; do
         [ -x "$LLVM_READELF" ] || fail "LLVM_READELF is not executable: $LLVM_READELF"
         ELF_CHECKED=$((ELF_CHECKED + 1))
         dump="$EVIDENCE_DIR/readelf_${SO_COUNT}.txt"
-        "$LLVM_READELF" -lW "$out" | tee "$dump"
-        python3 - "$dump" <<'PY'
-import re
+        "$LLVM_READELF" -lW "$out" | tee "$dump" || fail "readelf failed for $member"
+        if ! python3 - "$dump" <<'PY'
 import sys
 
 ok = True
@@ -131,7 +132,20 @@ for line in open(sys.argv[1], encoding='utf-8', errors='replace'):
 if not seen or not ok:
     raise SystemExit(1)
 PY
+        then
+          fail "native library is not 16 KiB PT_LOAD aligned: $member"
+        fi
         ELF_16K_PASS=$((ELF_16K_PASS + 1))
+
+        "$LLVM_READELF" -dW "$out" > "$EVIDENCE_DIR/dynamic_${SO_COUNT}.txt" \
+          || fail "dynamic-section inspection failed for $member"
+        DYNAMIC_INSPECTED=$((DYNAMIC_INSPECTED + 1))
+      fi
+
+      if [ -n "$LLVM_NM" ]; then
+        [ -x "$LLVM_NM" ] || fail "LLVM_NM is not executable: $LLVM_NM"
+        "$LLVM_NM" -u "$out" > "$EVIDENCE_DIR/undefined_symbols_${SO_COUNT}.txt" \
+          || fail "undefined-symbol inventory failed for $member"
       fi
       ;;
   esac
@@ -140,12 +154,24 @@ done < "$EVIDENCE_DIR/zip_inventory.txt"
 echo "R8_APP_ARTIFACT_NATIVE_SO_COUNT=$SO_COUNT"
 if [ "$SO_COUNT" -eq 0 ]; then
   echo "R8_APP_ARTIFACT_ELF_16K_COMPATIBILITY=NOT_APPLICABLE"
+  echo "R8_APP_ARTIFACT_DYNAMIC_DEPENDENCY_INVENTORY=NOT_APPLICABLE"
 elif [ -z "$LLVM_READELF" ]; then
   echo "R8_APP_ARTIFACT_ELF_16K_COMPATIBILITY=NOT_TESTED"
+  echo "R8_APP_ARTIFACT_DYNAMIC_DEPENDENCY_INVENTORY=NOT_TESTED"
 else
   [ "$ELF_CHECKED" -eq "$SO_COUNT" ] || fail "not all native libraries were checked"
   [ "$ELF_16K_PASS" -eq "$SO_COUNT" ] || fail "one or more native libraries are not 16 KiB compatible"
+  [ "$DYNAMIC_INSPECTED" -eq "$SO_COUNT" ] || fail "not all native dynamic sections were inspected"
   echo "R8_APP_ARTIFACT_ELF_16K_COMPATIBILITY=PASS"
+  echo "R8_APP_ARTIFACT_DYNAMIC_DEPENDENCY_INVENTORY=PASS"
+fi
+
+if [ "$SO_COUNT" -eq 0 ]; then
+  echo "R8_APP_ARTIFACT_UNDEFINED_SYMBOL_INVENTORY=NOT_APPLICABLE"
+elif [ -z "$LLVM_NM" ]; then
+  echo "R8_APP_ARTIFACT_UNDEFINED_SYMBOL_INVENTORY=NOT_TESTED"
+else
+  echo "R8_APP_ARTIFACT_UNDEFINED_SYMBOL_INVENTORY=PASS"
 fi
 
 printf '%s\n' "===== APK ZIPALIGN 16K CHECK ====="
@@ -180,5 +206,5 @@ printf '%s\n' "===== FINAL EVIDENCE SEAL ====="
 sha256sum "$EVIDENCE_DIR/SHA256SUMS.txt" | tee "$EVIDENCE_DIR/SHA256SUMS.txt.sha256"
 
 echo "R8_APP_ARTIFACT_AUDIT=PASS"
-echo "CLAIM_BOUNDARY=read-only APK/container/content/native-alignment audit; package manifest semantics, Soong import, product selection, target-files, image membership and runtime remain separate gates"
+echo "CLAIM_BOUNDARY=read-only APK/container/content/native-alignment/dynamic-dependency audit; package manifest semantics, Soong import, product selection, target-files, image membership and runtime remain separate gates"
 echo "Evidence: $EVIDENCE_DIR"
