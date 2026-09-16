@@ -2,101 +2,51 @@
 
 Status: **normative validation/evidence guidance for the current SableOS development train.**
 
-A gate proves a bounded claim. It must not collapse source identity, compilation, product selection, image membership and runtime behavior into one reassuring `PASS`.
-
-Historical Git history preserves the earlier long-form R5–R10 gate document. This revision keeps the earlier claim boundaries while making the current R8 Process A / Process B architecture explicit.
+A gate proves a bounded claim. It must not collapse source identity, compilation, trusted artifact identity, product selection, image membership and runtime behavior into one reassuring `PASS`.
 
 ## 1. Universal claim ladder
 
-Use explicit layers:
-
 ```text
 requirements/source identity
- -> build input identity
- -> module/application compile
- -> standalone artifact identity
- -> product import/module declaration
+ -> A1 disposable qualification
+ -> A2 trusted standalone artifact
+ -> B1 import/module processing
  -> product selection
  -> PRODUCT_OUT install
- -> installed-files / target-files
- -> image membership
- -> runtime package/component state
+ -> target-files membership
+ -> filesystem image membership
+ -> runtime package/component/JNI state
  -> user-visible behavior
- -> clean reconstruction/release provenance
+ -> portability/reconstruction/release provenance
 ```
 
 Never infer a later layer solely from an earlier one.
 
-Examples:
-
-- Cargo/Gradle PASS != Android product integration PASS.
-- `module-info.json` != product selection.
-- generated install rules != concrete PRODUCT_OUT output.
-- target-files membership != runtime/default-role behavior.
-- a successful Android build != complete SableOS product closure.
-- one Panther runtime PASS != qualification of another device/carrier.
-
 ## 2. Evidence status vocabulary
-
-Use consistently:
 
 ```text
 PASS       claim proven within stated boundary
-FAIL       tested claim contradicted / gate failed
+FAIL       tested claim contradicted
 BLOCKED    prerequisite/environment prevents evaluation
 NOT_TESTED intentionally not executed
 UNPROVEN   evidence exists but does not establish the claim
+UNKNOWN    evidence ambiguous
 ```
-
-Do not convert `BLOCKED` or `UNPROVEN` to PASS because source looked reasonable.
 
 ## 3. Authorization
 
-Every state-changing gate declares separate authorization for relevant classes, including:
+Every state-changing gate declares separate authorization for source mutation, build-output mutation, network/fetch, build execution, Git mutation, device contact, package install/uninstall, reboot, roles/defaults, flash/update/sign, root/remount/slot/wipe and clean/clobber/delete.
 
-- source mutation;
-- workspace/build-output mutation;
-- network/fetch;
-- build execution;
-- Git mutation;
-- device contact;
-- install/uninstall;
-- reboot;
-- roles/default apps;
-- flash/update/sign;
-- root/remount/slot/wipe;
-- clean/clobber/delete.
+Authorization for one class never implies another.
 
-Authorization for one class does not imply another.
+## 4. Historical R5/R6 and R7 baseline
 
-## 4. Evidence storage
+Preserve original R5/R6 migration/launcher requirements and R7 Panther daily-driver/product evidence. Current architecture may mark them historical/current baseline, but must not rewrite their original results.
 
-Prefer a unique evidence directory. Record focused outputs, manifests/inventories, hashes, source/build/artifact identity, result markers and a final evidence checksum/seal when the gate completes.
-
-An interrupted evidence directory is preserved/unsealed, not silently promoted to a completed seal.
-
-## 5. R5/R6 historical foundation
-
-R5/R6 evidence remains historically important for:
-
-- canonical Sable Start source migration;
-- direct migrated-checkout build identity;
-- manifest/reconstruction ownership;
-- real launcher inventory/search/greeting requirements;
-- distinction between module compile and product inclusion.
-
-Do not rewrite old R5/R6 PASS/FAIL artifacts to match current R8 architecture. Current README/status documents may mark these gates historical/superseded as the next work item.
-
-## 6. R7 Panther baseline
-
-R7 remains the daily-driver/product-wiring evidence baseline.
-
-Runtime requirements are in `device_sable_panther/docs/R7_DAILY_DRIVER_VALIDATION.md`.
-
-Product/build forensics must continue to distinguish:
+R7 reinforced:
 
 ```text
-source/prebuilt identity
+source/prebuilt
  -> graph edge
  -> product selection
  -> PRODUCT_OUT
@@ -104,19 +54,13 @@ source/prebuilt identity
  -> runtime
 ```
 
-Recent Panther firmware work established direct graph/source/product/target-files provenance for standalone ABL, aggregate bootloader and radio artifacts, including byte identity through the final target-files RADIO staging. The standalone ABL build path is a direct vendor-prebuilt copy; the bootloader aggregate independently contains the same ABL payload. This is product/firmware evidence, not a substitute for application/runtime testing.
+Unexecuted R7 runtime cases remain unproven.
 
-Any remaining unexecuted R7 calls/SMS/MMS/network/default-app/device cases stay explicit.
+## 5. R8-A1 — disposable source/application qualification
 
-## 7. R8 — consolidated application foundation
+A1 runs without a full Android product build.
 
-R8 has two separate gate families.
-
-### 7.1 Process A — standalone source/application qualification
-
-Process A must be able to run without a full Panther image build.
-
-#### Rust correctness
+### Rust
 
 As applicable:
 
@@ -124,194 +68,136 @@ As applicable:
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-targets
-property/fuzz tests for selected parsers/state machines
-unsafe/FFI review where present
+selected property/fuzz tests
+unsafe/FFI review
+RustSec/dependency/provenance review
 ```
 
-#### Rust dependency/security
-
-Where Cargo is canonical:
-
-```text
-lock/dependency inventory
-RustSec/cargo-audit
-license/provenance review
-```
-
-Do not invent a parallel Cargo graph for a canonically Soong-owned component just to run Cargo tools.
-
-#### Android/Kotlin
-
-For each standalone app:
+### Android/Kotlin
 
 ```text
 JVM/unit tests
-Compose/instrumentation tests as appropriate
-Android lint/static analysis
+Compose/emulator/instrumentation tests where useful
+Android Lint/static analysis
 standalone APK assembly
 package/version inspection
 manifest permission/component inspection
 ```
 
-#### Rust-backed Android JNI
+### Reader/Text Reader
 
-Before a Rust-backed app can freeze:
+Bind exact upstream revisions and deterministic Sable adaptation. Publication and text/accessibility capabilities may be qualified separately but must ultimately compose into one accepted Sable Reader identity.
+
+A1 artifacts are qualification evidence, not automatically trusted product binaries.
+
+## 6. R8-A2 — trusted standalone application artifact
+
+A2 runs on `ai-g732` after host migration/preflight closure.
+
+For every accepted app record at least:
+
+```text
+source/upstream commit(s)
+Gradle/JDK/SDK/NDK/Rust identities
+lockfile/dependency provenance
+trusted APK SHA-256
+package/version
+permissions/exported components
+classes*.dex extracted-content SHA-256
+lib/<abi>/*.so extracted-content SHA-256
+native ABI inventory
+16 KiB ELF compatibility
+APK native-library ZIP alignment
+accepted feature-policy boundary
+known limitations
+```
+
+If A1 and A2 artifacts differ, document why. Unexplained divergence blocks the trusted freeze.
+
+### JNI boundary
+
+For Rust-backed apps prove:
 
 ```text
 Rust core tests PASS
 Android native build PASS
 arm64-v8a library identity PASS
-x86_64/emulator library identity when supported
 Kotlin/JNI signature contract PASS
 panic/error boundary reviewed
 APK expected .so inventory PASS
-representative Kotlin -> JNI -> Rust call PASS
+representative Kotlin -> JNI -> Rust execution at app/device layer
 ```
 
-A Rust core PASS plus a Kotlin shell PASS without the binding is `JNI_RUNTIME_INTEGRATION=UNPROVEN`.
+A Rust core PASS plus Kotlin shell PASS without binding proof is `JNI_RUNTIME_INTEGRATION=UNPROVEN`.
 
-#### Vaachak Reader publication path
+## 7. Native 16 KiB compatibility gate
 
-Bind exact Vaachak Mobile source revision, deterministic Sable adaptation, relevant upstream/core tests, Sable flavor build/lint/policy and APK identity.
+Every accepted native R8 APK must pass verified 16 KiB compatibility.
 
-Initial qualification pin currently used by the R8 staging work:
+Evidence includes:
 
 ```text
-5393503ec0695e87e0a9bc4567fec0fea110ea4d
+ELF PT_LOAD alignment >= 0x4000
+APK ZIP alignment suitable for uncompressed native libraries
+runtime page size measured on accepted devices
+representative JNI execution
 ```
 
-Do not claim TXT solely from this path unless the source/tests/runtime prove it.
+Do not infer page size solely from SoC identity. The exact linker/toolchain mechanism follows the pinned NDK/toolchain.
 
-#### Vaachak Text Reader capability
+## 8. R8 integration freeze
 
-Bind exact Vaachak Text Reader revision, tests, build, lint and capability-policy evidence.
-
-Initial pin:
+Before B1:
 
 ```text
-50fca365baae9869264716569830690fb62029a7
-```
-
-Capability gates include:
-
-- `text/plain` local ingestion;
-- `ACTION_SEND`;
-- `ACTION_PROCESS_TEXT`;
-- TTS/audio export;
-- CameraX/gallery OCR;
-- Latin/Devanagari recognition.
-
-Network policy must independently inspect the upstream Internet permission and ML Kit model-download/translation behavior. `ON_DEVICE_PROCESSING=PASS` does not imply `STRICT_NETWORK_FREE=PASS`.
-
-### 7.2 R8 artifact seal
-
-Every accepted Process A artifact records at least:
-
-```text
-source repository + commit
-upstream/reuse commit(s)
-workflow/run identity
-package/application ID
-versionCode/versionName
-APK SHA-256
-permissions
-exported components/intent filters
-native ABI/library inventory
-third-party dependency/provenance inventory
-accepted feature-policy boundary
-known limitations
-```
-
-The freeze manifest lists the exact selected R8 inputs. A later rebuild with another hash is a different integration input.
-
-### 7.3 R8-A design gate
-
-Shared design contract:
-
-```text
-Follow system
-Light
-Dark
-bounded accent
-reset/default
-```
-
-Test preference resolution, invalid/corrupt fallback, persistence/schema migration as applicable, representative UI rendering and accessibility/contrast/font-scale behavior.
-
-Basic appearance work must not introduce unrelated network/location/phone/media/privileged authority.
-
-### 7.4 R8-B Calculator/Convert
-
-Host/domain tests may implement exact arithmetic primitives before unresolved user-interaction semantics are chosen.
-
-Do not write tests that silently make precedence, percent, repeated-equals, history or display-rounding behavior normative while those remain requirements TBDs.
-
-Core Calculator/Convert permission inventory should remain low privilege/offline.
-
-### 7.5 R8-C Games
-
-Prove deterministic rules/state for Sudoku, Minesweeper and 2048 and Android rendering/input/accessibility separately. No Lua runtime is part of the gate.
-
-### 7.6 R8-D / D2 Reader composition
-
-Separate qualification of publication and text/accessibility capabilities is allowed. Product integration must eventually prove one accepted Sable Reader identity rather than two competing branded Reader apps.
-
-### 7.7 R8-E Media
-
-Separate local-Music storage policy from Internet-Radio network authority. Prove Media3/MediaSession/background/audio-focus behavior at the appropriate app/device layer. Do not import ESP FreeRTOS/I2S/HELIX/PSRAM playback architecture.
-
-## 8. R8 integration freeze gate
-
-Before any full R8 Panther build:
-
-```text
-selected Process A lanes PASS or explicitly deferred
-exact artifact/source freeze produced
-shared R8-A contract aligned
+selected A1 lanes PASS or explicitly deferred
+A2 trusted artifact PASS
+exact app/source/toolchain freeze produced
+R8-A shared contract aligned
 permissions/policy reviewed
 external dependency/provenance recorded
-product integration mechanism selected for proof
-trusted builder migration/preflight PASS
+trusted builder activation PASS
 ```
 
-A workstream may be deferred rather than forcing a low-quality implementation into the image.
+Changing a frozen artifact reopens downstream evidence for that artifact.
 
-## 9. R8 Process B — product integration gate
+## 9. R8-B1 — pre-image Android integration
 
-### 9.1 Prebuilt/import mechanism
+Read `R8_PREIMAGE_GATE.md`.
 
-The Android 17/GrapheneOS behavior of the selected mechanism must be proven. `android_app_import` is a candidate, not an assumption.
-
-For each sealed app prove:
+For each frozen app prove separately:
 
 ```text
-sealed APK hash
- -> module/import declaration
- -> product package selection
+trusted APK hash/input path
+ -> Soong import/module declaration
+ -> certificate/signing behavior
+ -> JNI processing
+ -> dexpreopt / uses-library configuration
+ -> minimum import build
+ -> processed APK DEX/JNI content identity
+ -> product selection
  -> PRODUCT_OUT concrete path/hash
- -> installed-files membership
- -> target-files membership
- -> image membership
 ```
 
-If the installed bytes differ because signing/zipalign/transformation is intentionally performed, record the transformation and resulting identity rather than claiming byte identity falsely.
+`android_app_import` is the preferred candidate until exact Android 17/GrapheneOS behavior is observed.
 
-### 9.2 Trusted builder migration
+Outer APK hashes may legitimately change. Record whole-file and inner DEX/JNI identities separately.
 
-The next R8 image is planned on `ai-g732`. Before treating it as `sable-builder-01`, prove:
+## 10. R8-B2 — Panther development image
 
-- host/storage identity;
-- source repository identities;
-- workspace/output/evidence roots;
-- toolchain prerequisites;
-- target/release/variant/Build ID;
-- free-space floor/monitoring;
-- no accidental old-ThinkPad-only input;
-- exact frozen R8 app inputs available and hash-verified.
+Before the broad Panther image build prove:
 
-### 9.3 Full image gate
+```text
+A1/A2/freeze/B1 closure for selected tranche
+ai-g732 host/storage/source/tool identity
+target product/release/variant/Build ID
+isolated Panther OUT_DIR
+free-space floor/monitoring
+network/build authorization
+existing build-process state
+```
 
-Record independently:
+Record separately:
 
 ```text
 FULL_ANDROID_BUILD
@@ -320,49 +206,62 @@ REQUIRED_SABLE_PRODUCT_SELECTION
 REQUIRED_SABLE_PRODUCT_INSTALL
 TARGET_FILES_MEMBERSHIP
 IMAGE_MEMBERSHIP
-R8_PRODUCT_CLOSURE
+R8_PANTHER_PRODUCT_CLOSURE
 ```
 
-Do not collapse a successful Ninja result and a later missing application into one ambiguous result.
+Image inspection must detect the actual filesystem format before choosing tools; do not assume ext4/debugfs for every image.
 
-## 10. R8 device campaign
+## 11. Panther device campaign
 
-The Panther Device1 campaign consumes exact hash-identified image/application artifacts.
+Consume exact hash-identified image/app artifacts. Validate package/component identity, launcher behavior, R8-A design behavior, Calculator/Convert/Games, one Reader product/capability set, Media local/network boundaries, permissions/AppOps/roles/system intents, native JNI execution and required R7 regressions.
 
-Prove as applicable:
+Reboot-dependent claims require separate reboot authorization.
 
-- package/component identity;
-- launcher visibility/launch;
-- shared design behavior;
-- Reader format/share/TTS/OCR flows;
-- Media local/network boundaries;
-- Calculator/Convert/Games interaction/accessibility;
-- permissions/AppOps/roles;
-- cross-app/system intents;
-- reboot persistence only when authorized;
-- R7 daily-driver regression cases required for the accepted image.
+## 12. R8-B3 — Titan 2 portability gate
 
-## 11. Full image-build budget
+After Panther acceptance, build Titan 2 with an isolated OUT_DIR and the same frozen common R8 app artifacts/common `vendor_sable` integration wherever compatible.
 
-Normal R8 loop:
+Required portability claims include:
 
 ```text
-Cargo/Gradle/static CI            repeat
-standalone app/device test        repeat as needed
-product-wiring proof              bounded
-full Panther image                once per frozen integration tranche
-Device1 campaign                  once per accepted image tranche
+same common application source/artifacts
+same common product composition
+bounded Titan-specific device adapter
+16 KiB native compatibility
+runtime page-size measurement
+physical-keyboard navigation/focus/text input
+square-display layout/readability
+Reader OCR/TTS capability
+Media3/audio behavior
+no common application source fork
 ```
 
-Use dry-run/graph evidence before assuming a target-files/packaging target is cheap.
+Titan-specific secondary-display/program-key/FM features are not common R8 requirements unless separately approved.
 
-## 12. R9+
+`R8_COMMON_APP_PORTABILITY=PASS` requires both common-artifact reuse and target-specific runtime acceptance.
 
-R9 is the next coherent productivity/replacement tranche, not the first Calculator milestone. It follows the same Process A -> freeze -> Process B -> image -> device model.
+## 13. Production signing — later release gate
 
-## 13. Failure preservation
+Production signing is not part of R8 development closure.
 
-For trusted Android/product failures:
+After Panther and Titan 2 development qualification is satisfactory, a separate signing program may define:
+
+```text
+production app keys
+AVB hierarchy
+OTA signing
+sign_target_files_apks
+key custody/backup/recovery/rotation
+approved artifact handoff
+signing-host hardening/offline policy
+signed-output provenance
+```
+
+The ThinkPad P50 is only a future signing-host candidate. It is not yet `sable-signer-01`.
+
+## 14. Failure preservation
+
+For trusted build/product failures:
 
 ```text
 DO_NOT_CLEAN_AUTOMATICALLY
@@ -371,32 +270,24 @@ DO_NOT_DELETE_OUT_AUTOMATICALLY
 DO_NOT_RERUN_AUTOMATICALLY
 ```
 
-First classify:
+Classify first:
 
 ```text
 REQUIREMENTS
-SOURCE_INPUT
-APP_COMPILE
-STATIC_SECURITY
-JNI_NATIVE
-ARTIFACT_SEAL
-PRODUCT_IMPORT
-PRODUCT_SELECTION
-PRODUCT_INSTALL
-IMAGE_COMPOSITION
-RUNTIME
+A1_SOURCE_TEST
+A2_TRUSTED_APP_BUILD
+A2_NATIVE_16K
+B1_SOONG_IMPORT
+B1_PRODUCT_SELECTION
+B1_PRODUCT_INSTALL
+B2/B3_IMAGE_COMPOSITION
 HOST_ENVIRONMENT
 STORAGE
+RUNTIME
 ```
 
-Preserve partial outputs/logs when they contain useful evidence.
+Fix the root cause and rerun the narrowest valid target while preserving useful evidence.
 
-## 14. Documentation after closure
+## 15. Documentation after closure
 
-When a gate closes:
-
-- update the owning current status/README;
-- record exact commit/artifact/evidence identity;
-- keep original historical requirement/evidence files intact;
-- update the organization documentation map if a file becomes historical/superseded;
-- do not rewrite the requirement after the fact to make the implementation appear correct.
+When a gate closes, update current status/README, record exact commit/artifact/evidence identity, preserve historical requirement/evidence files and do not rewrite requirements after the fact to make implementation appear correct.
