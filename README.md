@@ -4,11 +4,13 @@ Host-side source assembly, trusted application builds, Android build orchestrati
 
 This repository answers **how SableOS source/artifacts are qualified, frozen, integrated, built and validated**. Application implementation belongs in application-owned source/workspaces; exact OS source composition belongs in `platform_manifest`.
 
+Organization-wide security, code-quality, coverage, fuzzing, supply-chain and performance requirements are defined in `sableos-project/.github/docs/SECURITY_QUALITY_ENGINEERING.md` and enforced here only where build/evidence tooling is the owning layer.
+
 ## Current R8 execution model
 
 ```text
 A1 — disposable qualification
-GitHub/local Rust + Kotlin + Gradle + static/security
+GitHub/local Rust + Kotlin + Gradle + static/security/coverage
         |
         v
 A2 — trusted standalone app build
@@ -47,10 +49,13 @@ OptiPlex is no longer part of the signing plan. Production AVB/OTA/application s
 
 Do not copy ThinkPad-specific absolute paths into generic orchestration. `ai-g732` host/profile configuration must bind the actual storage/workspace layout after migration.
 
+Before the trusted builder is considered fully commissioned, private canonical source, persistent-source at-rest protection, isolated runner/service-account policy, immutable CI dependency pinning and fresh reconstruction from canonical Git must be closed explicitly.
+
 ## Build-tooling goals
 
 - explicit authorization for network, source mutation, build, device contact, Git mutation and destructive operations;
 - fast A1 feedback separated from trusted A2 artifact production;
+- independently diagnosable security/code-quality/coverage/test lanes rather than one opaque green build;
 - trusted app artifacts sealed before Android integration;
 - product-selection/PRODUCT_OUT/target-files/image/runtime claims kept separate;
 - exact DEX/JNI inner-content identities tracked where APK containers can legitimately change;
@@ -59,7 +64,58 @@ Do not copy ThinkPad-specific absolute paths into generic orchestration. `ai-g73
 - no implicit clean/clobber/delete on failure;
 - storage preflight/monitoring for long Android builds;
 - filesystem-aware image inspection (do not assume ext4/debugfs);
-- clean reconstruction without workspace-only source or opaque local APKs.
+- clean reconstruction without workspace-only source or opaque local APKs;
+- exact source/dependency/toolchain/artifact provenance at each trust transition;
+- compact SBOM/provenance/security/coverage summaries retained with trusted artifact evidence;
+- performance measurements bound to exact builds/devices rather than inferred from language or compile success.
+
+## Security / quality evidence contract
+
+The build layer does not replace source-level CI, but it records and preserves the evidence required to promote an accepted source state into a trusted artifact.
+
+Expected A1/A2 inputs include as applicable:
+
+```text
+Rust fmt / Clippy / unit-property-fuzz results
+cargo-audit + cargo-deny dependency policy
+CodeQL / MobSF / Android Lint / detekt / ktlint results
+secret-scanning / workflow-policy results
+Kover / cargo-llvm-cov coverage provenance
+OWASP MASVS/MASTG control evidence or documented exceptions
+lockfile / Gradle dependency verification identities
+source/toolchain/dependency hashes
+```
+
+Expected trusted artifact outputs include:
+
+```text
+APK SHA-256
+package/version/permission/exported-component state
+classes*.dex identities
+JNI .so identities
+native ABI inventory
+16 KiB ELF/APK compatibility
+SBOM/provenance identity when produced
+accepted security/quality limitations
+```
+
+A scanner PASS, coverage percentage or successful APK compile does not by itself authorize product integration.
+
+## Performance evidence
+
+Where a change has meaningful performance impact, retain reproducible measurement context such as:
+
+```text
+exact build/source identity
+exact device/target
+cold/warm startup
+frame/jank metrics
+memory / CPU / I/O
+power/battery behavior where relevant
+focused domain benchmarks
+```
+
+Performance thresholds are introduced from representative baselines and ratcheted. Panther measurements are not silently generalized to Titan 2.
 
 ## Recommended layout
 
@@ -89,7 +145,8 @@ Before a full development image build:
 7. PRODUCT_OUT installation is proven separately;
 8. exact target product/release/variant/Build ID is resolved;
 9. host/storage/source/tool identities are sealed;
-10. storage has adequate margin and monitoring/abort policy.
+10. storage has adequate margin and monitoring/abort policy;
+11. applicable security/quality/coverage/dependency-policy evidence is bound to the accepted source state.
 
 Read [`docs/R8_PREIMAGE_GATE.md`](docs/R8_PREIMAGE_GATE.md).
 
@@ -124,7 +181,7 @@ application source/workspaces
     app source/dependency/test authority
 
 platform_sable
-    shared semantic/design/application contracts
+    shared semantic/design/application/security-quality contracts
 
 vendor_sable
     common imported modules + common qualified app selection
@@ -136,4 +193,4 @@ build
     trusted app build, Android build, product-wiring proof and evidence
 ```
 
-Build tooling enforces documented architecture. It does not invent product semantics, privileges, default-app choices or device-specific policy.
+Build tooling enforces documented architecture. It does not invent product semantics, privileges, default-app choices, security exceptions or device-specific policy.
