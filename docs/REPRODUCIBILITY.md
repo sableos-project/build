@@ -1,5 +1,8 @@
 # Reproducibility policy
 
+> **Current execution overlay — 2026-09-20:** a successful target request against a warmed OUT is incremental evidence, not fresh-build proof. R9 release qualification requires an initially absent source-bound OUT, independently checked by the outer runner and inner build, plus target-files mtime/freshness evidence proving creation after the build start.
+
+
 Status: **normative reproducibility/provenance policy.**
 
 SableOS distinguishes related but different claims:
