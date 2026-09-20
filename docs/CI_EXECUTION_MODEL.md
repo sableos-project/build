@@ -1,5 +1,24 @@
 # SableOS CI execution model
 
+
+> **Current execution overlay — 2026-09-20:** canonical qualification runs
+> directly on the controlled local build machine. GitHub-hosted build CI is
+> retired from the release-critical path, and no GitHub self-hosted Actions
+> runner is active. GitHub remains source/review/issues/documentation
+> infrastructure. Local CI reuses the canonical pinned host toolchain and
+> preserves source-bound evidence.
+>
+> Operator release builds are release-neutral:
+>
+> ```bash
+> bash build/panther/run-release.sh R9
+> ```
+>
+> Fresh Panther qualification requires an initially absent source-bound OUT;
+> a fast success against a warmed OUT is incremental evidence, not fresh-build
+> proof.
+
+
 Status: **normative implementation guidance for CI/build/device and later signing execution.**
 
 This document implements `sableos-project/.github/docs/CI_TRUST_ARCHITECTURE.md`.
