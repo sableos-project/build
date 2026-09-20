@@ -1,16 +1,36 @@
 # SableOS build tooling
 
+![Local CI](https://img.shields.io/badge/CI-local%20direct-active-2ea44f)
+![R9 Launcher](https://img.shields.io/badge/R9%20launcher%20visual-PASS-2ea44f)
+![Fresh Panther](https://img.shields.io/badge/fresh%20Panther%20build-IN%20PROGRESS-f0ad4e)
+![Pixel 7](https://img.shields.io/badge/Pixel%207%20physical-PENDING-lightgrey)
+![Titan 2](https://img.shields.io/badge/Titan%202-keyboard--first%20QUEUED-6f42c1)
+
+## Current build/CI status
+
+The authoritative build/qualification path is **local direct CI** on the controlled build machine. GitHub is used for source hosting, review, issues and documentation; GitHub-hosted build Actions are retired from the release-critical path and no self-hosted GitHub Actions runner is active.
+
+The operator-facing build interface is release-neutral in the private integration repo:
+
+```bash
+bash build/panther/run-release.sh R9
+```
+
+The release identifier changes; operators do not create per-release /tmp drivers or custom command sequences.
+
+R9 fresh-build qualification uses an initially absent source-bound OUT and requires target-files freshness/causality proof. A fast incremental Ninja success against a warmed OUT is useful evidence, but is not labeled a fresh full build.
+
 Host-side source assembly, trusted application builds, Android build orchestration, reproducibility checks, product-wiring proof and evidence tooling for SableOS.
 
 This repository answers **how SableOS source/artifacts are qualified, frozen, integrated, built and validated**. Application implementation belongs in application-owned source/workspaces; exact OS source composition belongs in `platform_manifest`.
 
 Organization-wide security, code-quality, coverage, fuzzing, supply-chain and performance requirements are defined in `sableos-project/.github/docs/SECURITY_QUALITY_ENGINEERING.md` and enforced here only where build/evidence tooling is the owning layer.
 
-## Current R8 execution model
+## Current execution model
 
 ```text
-A1 — disposable qualification
-GitHub/local Rust + Kotlin + Gradle + static/security/coverage
+A1 — local direct qualification
+Rust + Kotlin + Gradle + static/security/coverage on the controlled build machine
         |
         v
 A2 — trusted standalone app build
@@ -37,8 +57,8 @@ The Android tree is not the everyday compiler for R8 applications.
 ## Current host transition
 
 ```text
-GitHub hosted     = disposable/untrusted A1 CI
-ai-g732           = intended trusted A2/B1/B2/B3 development builder
+GitHub            = source/review/issues/docs; hosted build CI retired
+ai-g732            = local CI + trusted A2/B1/B2/B3 development builder
 thinkpad-p50      = historical/reference builder during migration;
                     future production-signing-host candidate only
 Pixel 7 / panther = primary R8 runtime target
