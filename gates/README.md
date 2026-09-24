@@ -1,13 +1,38 @@
 # Build/evidence gates
 
-Gate scripts are designed to prove bounded claims and fail closed. A `PASS` from one gate must not be promoted into a later product/image/runtime claim.
+Status: **current gate index — 2026-09-24**
 
-## Current R8 gates
+Gates prove bounded claims. A source/build PASS does not imply product selection,
+image membership, artifact registration, deployment or runtime acceptance.
 
-- `r8_app_artifact_audit.sh` — read-only audit of one trusted standalone APK. Records whole-APK and extracted DEX/JNI identities and can verify native 16 KiB ELF/APK alignment when the caller supplies the pinned `llvm-readelf` and `zipalign` tools. It does **not** prove Soong import, package manifest semantics, product selection, target-files/image membership or runtime behavior.
+## Current common gate principles
 
-## Historical gates
+- explicit mutation authorization;
+- source-bound qualification where required;
+- no automatic clean/clobber;
+- exact artifact hashes;
+- explicit artifact kind;
+- selected-serial exact binding for device contact;
+- common safety/evidence vs adapter-owned transport;
+- fail-closed unqualified devices.
 
-- `r5_r3a_manifest_audit.sh` — read-only historical workspace/manifest/path audit used during SableStart migration and reconstruction work.
+## K1/K2
 
-Every state-changing build/integration gate must print explicit authorization before mutation. Read-only gates may create only their declared evidence directory.
+The current private integration pipeline includes self/static contracts for:
+
+- artifact registry schema v2 + legacy Panther compatibility;
+- generic GSI-style artifact representation;
+- registered artifact verification;
+- device capability-gated registration;
+- common flash driver free of Panther slot/flashall semantics;
+- Panther adapter callback ownership;
+- Titan 2 / Titan 2 Elite / Q27 blocked deployment capabilities;
+- multi-device serial scope.
+
+## Historical R8 gates
+
+Older `r8_*` gate names remain useful provenance and may still exist where
+their bounded artifact/JNI/product checks remain applicable. They are not the
+active project milestone by name.
+
+Every state-changing gate must print its authorization boundary before mutation.
