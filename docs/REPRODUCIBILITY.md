@@ -1,156 +1,66 @@
 # Reproducibility policy
 
-> **Current execution overlay — 2026-09-20:** a successful target request against a warmed OUT is incremental evidence, not fresh-build proof. R9 release qualification requires an initially absent source-bound OUT, independently checked by the outer runner and inner build, plus target-files mtime/freshness evidence proving creation after the build start.
+Status: **current normative reproducibility/provenance policy — 2026-09-24**
 
+## Layers
 
-Status: **normative reproducibility/provenance policy.**
-
-SableOS distinguishes related but different claims:
-
-```text
-source composition reproducibility
-A1 standalone qualification reproducibility
-A2 trusted application artifact reproducibility
-product integration reproducibility
-artifact byte reproducibility
-runtime/portability reproducibility
-later signed-release reproducibility
-```
-
-Do not use one as a substitute for another.
-
-## 1. OS source composition
-
-A reproducible Android build starts from explicit upstream/substrate identity plus exact Sable-owned revisions. `platform_manifest` is authoritative. A clean reconstruction must not depend on manual source copies, untracked local manifests, host-only symlinks, uncommitted source, unresolved branch tips or historical workspace-only modules.
-
-## 2. A1 disposable application qualification
-
-A1 may run on GitHub/developer machines and records exact source/upstream pins, lock/dependency state, workflow/tool identity, package/manifest state and qualification artifact hashes.
-
-A1 proves the declared standalone qualification only; it is not automatically the artifact consumed by the product.
-
-## 3. A2 trusted standalone application reproducibility
-
-`ai-g732` rebuilds exact accepted source with pinned/recorded toolchains and produces the artifact eligible for the R8 freeze.
-
-For each accepted A2 artifact record:
+Distinguish reproducibility of:
 
 ```text
-source/upstream commit(s)
-Gradle wrapper/version
-JDK
-Android SDK/NDK
-Rust toolchain + lockfile hashes
-build commands/variant
-package/application ID + version
-permissions/components
-trusted APK SHA-256
-classes*.dex extracted-content SHA-256
-JNI .so extracted-content SHA-256
-native ABI inventory
-16 KiB compatibility
-dependency/provenance inventory
+source composition
+application qualification
+trusted artifact
+product integration
+full image/artifact
+artifact registration
+deployment
+runtime/portability
+future signed release
 ```
 
-Where reproducible, compare A1 and A2 outputs. Unexplained differences block the trusted freeze until understood.
+## Source identity
 
-## 4. External-source adaptation
+Validated builds start from explicit upstream/substrate identity plus exact
+Sable revisions. Do not depend on manual copies, untracked manifests, host-only
+symlinks, uncommitted source or unresolved branch tips.
 
-For Vaachak or other pinned sources:
+## Artifact identity — K1
 
-```text
-exact upstream commit
-+ exact Sable adaptation
-+ exact trusted build/dependency environment
-= accepted trusted source/artifact identity
-```
+Registry schema v2 records exact artifact class, primary artifact, named hashes,
+tool source and metadata.
 
-Branch names alone are never sufficient provenance.
+Legacy Panther records remain readable.
 
-## 5. Product integration reproducibility
+Artifact byte identity is separate from source identity; signing/zip/container
+metadata may affect outer bytes and must be explained rather than ignored.
 
-A reproducible SableOS development image records both exact source composition and exact trusted A2 application inputs.
+## Build-output freshness
 
-For each imported app additionally record:
+A warmed OUT may be valid incremental evidence but is not fresh-build proof when
+the claim requires reconstruction.
 
-```text
-A2 freeze record
-module/import declaration
-certificate/signing behavior
-JNI/dexpreopt/uses-library behavior
-product selection owner
-install partition/path
-PRODUCT_OUT identity
-target-files/image identity when generated
-```
+Historical successful OUT directories are evidence, not hidden inputs.
 
-Do not claim reconstruction solely from the Android source manifest when trusted external APKs are also required.
+## Target isolation
 
-## 6. Whole-APK versus inner-code identity
+Build/output state is isolated by device/release/source as appropriate.
+Physical device serial is not build identity.
 
-Source reproducibility does not guarantee outer APK byte identity when signing, zip alignment, compression/layout or generated metadata changes.
+## Deployment reproducibility — K2
 
-Therefore track separately:
+Repeatable deployment requires the same registered artifact plus the qualified
+device adapter/transport contract and explicit selected serial.
 
-```text
-whole APK SHA-256
-classes*.dex extracted-content SHA-256
-lib/<abi>/*.so extracted-content SHA-256
-```
+Panther's A/B target-files semantics are not universal.
 
-Intentional Soong/signing transformations must be documented rather than treated as unexplained code drift.
+## Device evidence
 
-## 7. Native 16 KiB reproducibility
+Panther is frozen reference. Titan 2 and Titan 2 Elite have independent runtime
+and hardware evidence. Do not infer page size, camera, keyboard, telephony,
+display or power behavior across targets.
 
-R8 native artifacts must be reproducibly compatible with 16 KiB page-size systems using the pinned toolchain. Record ELF program-header alignment and APK native-library ZIP alignment. Runtime page size/JNI behavior are device evidence, not inferred from SoC name alone.
-
-## 8. Build host / target isolation
-
-The first R8 `ai-g732` build after storage migration records host/OS, filesystem/storage, workspace/output/evidence roots, toolchains, source identities, free-space/network policy and isolated OUT_DIR per target/materially different variant.
-
-Panther and Titan 2 should use the same trusted common app artifacts where compatible while keeping target output state separate.
-
-## 9. Caches/network
-
-Caches are performance inputs, not provenance authorities. Disposable caches are untrusted convenience data; trusted caches are isolated from arbitrary PR code; clean/reconstruction claims can bypass/invalidate caches. Offline/no-fetch claims require actual dependency pre-acquisition and an honestly enforced/reported boundary.
-
-## 10. Evidence package
-
-A strong evidence set records:
-
-```text
-platform_manifest/source identity
-trusted_external_artifact_inputs
-host/build environment
-resolved target product/release/variant/Build ID
-build commands/result
-artifact inventory
-product/package install evidence
-target-files/image identities
-SHA256SUMS
-known transformations/nondeterminism
-final gate report + seal
-```
-
-## 11. Production signing — later
+## Production signing
 
 Development/test signing identity is separate from production release signing.
-
-Production app keys, AVB, OTA, `sign_target_files_apks`, signing-host hardening/key custody and signed-output provenance are deliberately deferred until Panther and Titan 2 development qualification is satisfactory.
-
-The ThinkPad P50 is only a future signing-host candidate and is not yet `sable-signer-01`.
-
-## 12. Closure vocabulary
-
-```text
-SOURCE_RECONSTRUCTION=PASS/UNPROVEN
-A1_QUALIFICATION_REPRODUCIBILITY=PASS/UNPROVEN
-A2_TRUSTED_APP_REPRODUCIBILITY=PASS/UNPROVEN
-EXTERNAL_ARTIFACT_INPUT_BINDING=PASS/UNPROVEN
-PRODUCT_INTEGRATION_RECONSTRUCTION=PASS/UNPROVEN
-BYTE_REPRODUCIBILITY=PASS/UNPROVEN
-PORTABILITY_REPRODUCIBILITY=PASS/UNPROVEN
-SIGNED_RELEASE_REPRODUCIBILITY=PASS/UNPROVEN
-```
-
-Only claim the layers actually demonstrated.
+Future signed-release reproducibility must additionally bind production keys,
+AVB/OTA process and signing-host provenance.
