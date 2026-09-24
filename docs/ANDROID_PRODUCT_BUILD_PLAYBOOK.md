@@ -1,5 +1,8 @@
 # Android product build playbook
 
+> **Current multi-device overlay — 2026-09-24:** Panther is a frozen reference and K1/K2 is merged. The Panther/GrapheneOS observations later in this document are historical target-specific learning, not the active universal deployment model. New devices use explicit artifact kinds and adapter-owned transport/partition semantics.
+
+
 Status: **normative build-orchestration and evidence guidance; product semantics remain owned by the appropriate Sable repositories.**
 
 This document captures reusable lessons from Android product-build work so Panther and future device targets do not rediscover target-selection, generated-product, product-composition, storage, and failure-preservation behavior through repeated long builds.
