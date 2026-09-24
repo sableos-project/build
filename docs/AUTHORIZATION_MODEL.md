@@ -1,5 +1,8 @@
 # Build and mutation authorization model
 
+> **Current multi-device note — 2026-09-24:** device-contact operations must also bind an explicit selected serial. Artifact registration/build identity does not contain a physical serial. Titan-family/Q27 mutation remains blocked by adapter capability until qualified.
+
+
 SableOS validation tooling should make mutation boundaries explicit rather than relying on operator assumptions.
 
 Typical independent authorization classes include:
