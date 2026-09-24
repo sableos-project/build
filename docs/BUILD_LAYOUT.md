@@ -1,5 +1,8 @@
 # Build layout
 
+> **Current device-role overlay — 2026-09-24:** Panther is REFERENCE_FROZEN; Titan 2 is active N0 portability research; Titan 2 Elite is an independent candidate; Q27 remains research. K1/K2 provides a common artifact/deployment framework with device adapters.
+
+
 SableOS development should separate canonical Sable source, upstream Android source, generated outputs, evidence, and host tools.
 
 Recommended local root:
@@ -26,7 +29,7 @@ The exact directory spelling may vary by host, but scripts should derive paths f
 
 ## Device/substrate profiles
 
-Build tooling should accept a target/substrate profile rather than hard-coding every command for one workspace. Future Panther revisions, Bramble, Titan-class research targets, or other devices should reuse the same orchestration framework where possible.
+Build tooling should accept a target/substrate profile rather than hard-coding every command for one workspace. Panther maintenance, Titan-family portability targets, Q27 research, or future devices should reuse the same orchestration framework where possible.
 
 A profile should bind enough information to reproduce target configuration before build execution. At minimum record:
 
