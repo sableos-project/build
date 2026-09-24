@@ -1,6 +1,9 @@
 # R8 consolidated build-plan review brief
 
-Status: **second-eye review brief; normative requirements live in the linked R8 architecture/build documents.**
+> **HISTORICAL R8 ENGINEERING RECORD — 2026-09-24 classification:** retained for build/integration provenance. The R8 execution sequence is closed; Panther R9 is accepted/frozen and K1/K2 is merged. Do not use this document as current project status or current Titan deployment authorization.
+
+
+Status: **HISTORICAL_EVIDENCE / SUPERSEDED CURRENT EXECUTION.**
 
 This brief summarizes the post-R7 R8 build architecture for experienced Android build review.
 
