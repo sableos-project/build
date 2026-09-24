@@ -1,6 +1,9 @@
 # R8 B1 command reference
 
-Status: **implementation reference; the normative gate is `R8_PREIMAGE_GATE.md`.**
+> **HISTORICAL R8 ENGINEERING RECORD — 2026-09-24 classification:** retained for build/integration provenance. The R8 execution sequence is closed; Panther R9 is accepted/frozen and K1/K2 is merged. Do not use this document as current project status or current Titan deployment authorization.
+
+
+Status: **HISTORICAL_EVIDENCE / SUPERSEDED CURRENT EXECUTION.**
 
 This file records representative commands for the first `ai-g732` B1 run. Exact paths/targets must be resolved from the active Android 17 / GrapheneOS tree before use.
 
