@@ -1,14 +1,14 @@
 # SableOS build tooling
 
-## Current direction — 2026-09-24
+Status: **current build/artifact/deployment architecture — 2026-09-24**
 
-The canonical engineering interface is multi-device and release-neutral:
+## Canonical engineering interface
 
 ```text
 build/sable.sh <device> <release> <function> [options]
 ```
 
-Known canonical device IDs:
+Canonical device IDs:
 
 ```text
 panther
@@ -17,132 +17,100 @@ titan2-elite
 q27
 ```
 
-Pixel 7 / Panther R9 is now a frozen reference. Active build-tooling work is to
-generalize the proven Panther pipeline for Titan 2 and Titan 2 Elite without
-weakening its source/artifact/evidence discipline.
+Panther is a frozen accepted R9 reference. K1/K2 multi-device foundation is
+implemented and host-qualified.
 
-## Serial rule
+## K1 — artifact registry v2
 
-A physical device serial is **not** part of build or image identity.
-
-Build identity is:
+Registry identity remains:
 
 ```text
-device class + release + source + toolchain + product inputs
+device + release + build source
 ```
 
-Serial is mandatory only for device-contact operations:
-
-```bash
-build/sable.sh titan2 R10 flash --build-source <sha> --serial <serial> --preserve-data --authorize
-build/sable.sh titan2 R10 accept --serial <serial> --suite keyboard
-```
-
-This permits multiple attached devices while keeping every mutation explicitly
-bound to the selected unit.
-
-## Device adapter contract
-
-The common entry point dispatches through:
+Schema v2 adds explicit:
 
 ```text
-build/devices/<device>.sh
-```
-
-A device adapter declares whether build, qualification, preserved-data flash and
-acceptance are supported. Unknown or unqualified devices fail closed.
-
-Adapters own:
-
-- expected product/device identity;
-- artifact kind supported by that target;
-- partition/slot model;
-- fastboot/fastbootd/vendor transport;
-- stock/vendor partitions that must be preserved;
-- bootloader/AVB prerequisites;
-- restore strategy;
-- target-specific acceptance suites.
-
-Common tooling owns:
-
-- authorization;
-- selected-serial binding;
-- source/artifact provenance;
-- hash verification;
-- evidence collection/sealing;
-- no-wipe/default preservation policy;
-- post-boot smoke framework.
-
-## Artifact generalization
-
-Panther currently proves a `target-files`-centric release path. Non-Pixel N0
-targets may instead consume a GSI/system-image artifact while retaining stock
-vendor/kernel/firmware.
-
-The artifact registry should therefore represent:
-
-```text
-device
-release
-source_commit
-tool_source_commit
 artifact_kind
-image/member hashes
-stock/vendor basis where applicable
-build evidence
-required flash strategy
+primary_artifact
+named artifact paths/hashes/sizes
+tool source
+metadata
 ```
 
-Supported artifact kinds may include:
+Supported artifact kinds:
 
 ```text
 target-files
 full-device-images
 gsi-system-image
-system/product bundle
-device-specific boot/recovery bundle
+system-product-bundle
+boot-recovery-bundle
 ```
 
-Do not pretend every device can use Panther's A/B `fastboot flashall` path.
+Legacy Panther schema-1/target-files records remain readable/verifiable.
 
-## Current device state
+Release artifact registration is separately capability-gated by each device
+adapter. Generic schema support does not make an unqualified device releasable.
 
-| Device | Build | Flash | Role |
-| --- | --- | --- | --- |
-| panther | qualified | qualified | frozen R9 reference |
-| titan2 | blocked until N0 contract | blocked | active keyboard-first target |
-| titan2-elite | blocked until independent proof | blocked | next keyboard-first target |
-| q27 | blocked | blocked | research/future |
+## Serial rule
 
-## CI / evidence model
+A physical serial is not build/image/artifact identity.
 
-The authoritative pipeline remains local-direct on the controlled build machine.
-GitHub is source/review/documentation, not the release-critical Android builder.
+Serial is required only for device-contact operations. Every ADB/fastboot
+mutation must bind the selected serial exactly; tooling must never fall back to
+the first globally attached device.
 
-Claims remain separated:
+## K2 — deployment boundary
 
-```text
-source checks
- != trusted artifact
- != product selection
- != image membership
- != flash success
- != runtime acceptance
-```
+Common deployment orchestration owns:
 
-A source-bound full CI attestation is required before a release image build.
-Historical successful OUT directories remain evidence, not hidden reconstruction
-inputs.
+- explicit authorization;
+- registered-artifact verification;
+- artifact-kind support checks;
+- exact selected-serial binding;
+- evidence collection/sealing;
+- preserved/destructive-data policy;
+- baseline capture where applicable;
+- bounded failure recovery;
+- post-boot return and callback dispatch.
 
-## Next tooling sequence
+Device adapter owns:
 
-```text
-K1 generalized artifact descriptor
-K2 common flash policy + device transport callbacks
-K3 Titan 2 read-only preflight/restore model
-K4 Titan 2 N0 build artifact
-K5 Titan 2 flash/acceptance qualification
-K6 Titan 2 Elite repeat independently
-```
+- supported artifact kinds;
+- expected product identity;
+- partition/slot model;
+- fastboot/fastbootd/vendor transport;
+- AVB/vbmeta prerequisites;
+- writable images;
+- restore strategy;
+- target-specific post-boot acceptance.
 
-See [Multi-device engineering interface](docs/MULTI_DEVICE_ENGINEERING_INTERFACE.md).
+## Current adapter state
+
+| Device | Register | Flash plan | Flash | Qualified artifact/transport |
+| --- | --- | --- | --- | --- |
+| panther | YES | YES | YES | target-files / A-B fastboot |
+| titan2 | NO | NO | NO | UNQUALIFIED |
+| titan2-elite | NO | NO | NO | UNQUALIFIED |
+| q27 | NO | NO | NO | UNQUALIFIED |
+
+Titan-family support remains fail-closed until research proves exact
+restore/partition/AVB/transport contracts.
+
+## CI / evidence
+
+The authoritative release-critical pipeline is local-direct on the controlled
+build host. A source-bound full-CI attestation is required before a release image
+build where the release contract demands it.
+
+GitHub remains source/review/issues/documentation infrastructure.
+
+## Current next work
+
+Build/deployment foundation is not the current blocker. Active work moves to
+keyboard-first product design and Titan adapter-input research.
+
+When Titan N0 deployment begins, first decide from physical evidence whether the
+artifact should be a system GSI, generated super image, or bounded
+system/product/system_ext bundle and whether data preservation is feasible.
