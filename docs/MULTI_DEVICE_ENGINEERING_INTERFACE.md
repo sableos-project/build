@@ -1,15 +1,15 @@
 # Multi-device engineering interface
 
-Status: **normative direction**
+Status: **implemented foundation / normative interface — 2026-09-24**
 
 ## Operator contract
 
 ```text
-sable <device> <release> <function> [options]
+build/sable.sh <device> <release> <function> [options]
 ```
 
-The interface must remain stable while device-specific implementation lives
-behind adapters.
+The interface remains stable while device-specific implementation lives behind
+adapters.
 
 ## Parameter ownership
 
@@ -18,108 +18,93 @@ device
     selects product/device adapter
 
 release
-    selects release contract/policy
+    selects release policy
 
 source
     binds reproducible source/artifact identity
 
 serial
-    selects one physical device only when contacting hardware
+    selects one physical device only for device-contact operations
 ```
 
-Do not key build caches, artifact registries or image names by serial.
+Never key build caches, artifact registries or image names by serial.
 
-## Required functions
+## Artifact contract — implemented K1
+
+Schema v2 supports:
 
 ```text
-ci
-qualify
-build
-register-artifact
-show-artifact
-flash-plan
-flash
-accept
+target-files
+full-device-images
+gsi-system-image
+system-product-bundle
+boot-recovery-bundle
 ```
 
-Future read-only functions may include `probe` and `capture`, also requiring
-an explicit serial.
+Each record includes exact build source, tool source, primary artifact and named
+artifact hashes/sizes plus optional metadata/build evidence.
 
-## Adapter capability schema
+Schema-1 Panther target-files records remain compatible.
 
-A future structured device descriptor should expose at least:
-
-```text
-canonical_name
-aliases
-support_level
-interaction_profile
-expected_product
-android_baseline
-build_supported
-qualification_supported
-artifact_kinds
-flash_supported
-preserve_data_supported
-partition_model
-flash_transport
-fastbootd_required
-stock_vendor_preserved
-restore_strategy
-acceptance_suites
-```
-
-## Flash callback split
+## Deployment contract — implemented K2
 
 Common orchestration:
 
 ```text
 resolve registered artifact
-verify source/hash
+verify artifact hashes/kind
 bind selected serial
-capture baseline
+capture common evidence/baseline
 call adapter preflight
 call adapter deployment
-wait for boot
-run common smoke
-run target acceptance
+wait for Android/CE return
+call target post-boot acceptance
 seal evidence
 ```
 
-Adapter callbacks:
+Adapter callbacks own:
 
 ```text
-device_preflight
-device_enter_flash_mode
-device_validate_flash_mode
-device_deploy_artifact
-device_reboot
-device_postboot_checks
+artifact preparation / flash plan
+device preflight
+flash-mode transition/validation
+actual deployment
+bounded pre-write recovery
+target post-boot smoke
 ```
 
-Panther's current A/B fastboot implementation can become one adapter
-implementation of these callbacks.
+Panther's A/B target-files fastboot implementation is the first qualified
+adapter.
 
-## N0 GSI devices
+## Capability gate
 
-For Titan-family N0 work, artifact registration may bind:
+An adapter explicitly declares whether build, qualification, artifact
+registration, flash planning and flashing are supported.
 
-```text
-Sable system/GSI image
-exact stock firmware/vendor basis
-vbmeta/AVB handling
-dynamic-partition evidence
-restore package identity
-```
+Titan 2, Titan 2 Elite and Q27 currently declare those release/deployment
+capabilities blocked.
 
-The standard tool must refuse mutation if the target's stock restore path or
-partition assumptions are not qualified.
+## N0 Titan direction
+
+Future Titan-family N0 records may bind a Sable system/GSI artifact plus exact
+stock kernel/vendor/ODM/firmware basis.
+
+Before enabling mutation prove:
+
+- exact restore source/hashes;
+- bootloader + fastbootd identity;
+- dynamic partition/super layout;
+- snapshot state;
+- AVB strategy;
+- artifact sizing;
+- whether userdata preservation is actually possible.
+
+If an experiment requires wipe, add a separate explicit destructive-data policy.
+Do not silently reuse Panther's preserved-data contract.
 
 ## Multi-device host safety
 
-Every ADB/fastboot mutation must use the selected serial. Additional attached
-devices are permitted, but the requested serial must resolve exactly once in the
-expected transport before mutation.
+Additional attached devices are allowed. The requested serial must resolve
+exactly once in the expected transport before mutation.
 
-Never fall back from a missing selected device to the first globally attached
-device.
+Never fall back to an unqualified global `adb`/`fastboot` device.
