@@ -1,6 +1,6 @@
 # SableOS build tooling
 
-Status: **current build/artifact/deployment architecture — 2026-09-24**
+Status: **current build/artifact/deployment architecture — 2026-09-25**
 
 ## Canonical engineering interface
 
@@ -17,8 +17,14 @@ titan2-elite
 q27
 ```
 
-Panther is a frozen accepted R9 reference. K1/K2 multi-device foundation is
-implemented and host-qualified.
+Panther is a frozen accepted R9 Hub V1 reference. K1/K2 multi-device foundation
+is implemented and host-qualified.
+
+```text
+R9_PANTHER_ACCEPTED_SOURCE=edf62e5bb08372a1395841d6cc5d78d3148a7695
+R9_PANTHER_TARGET_FILES_SHA256=a0b359613c4f30e9a834fba212e0b044a97d63ed0537c59471c31b99b627d285
+R9_PANTHER_PHYSICAL_ACCEPTANCE=PASS_WITH_PRESERVED_PLAY_STATE
+```
 
 ## K1 — artifact registry v2
 
@@ -114,3 +120,6 @@ keyboard-first product design and Titan adapter-input research.
 When Titan N0 deployment begins, first decide from physical evidence whether the
 artifact should be a system GSI, generated super image, or bounded
 system/product/system_ext bundle and whether data preservation is feasible.
+
+Remaining open issues are intentionally kept open until the Titan 2 SableOS
+install path proves or supersedes them.
