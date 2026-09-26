@@ -52,6 +52,7 @@ sign             fail closed unless an explicit public signing mode is qualified
 verify           print artifact-verification requirements and fail without inputs
 package          fail closed until artifact registry packaging is public
 flash-plan       print the current flash/deployment support boundary
+self-test        run local dry-run/fail-closed checks and write evidence
 ```
 
 Unknown devices, releases and functions fail closed.
@@ -62,9 +63,16 @@ Unknown devices, releases and functions fail closed.
 bash sable.sh panther R9 env-check
 bash sable.sh panther R9 source-sync
 bash sable.sh panther R9 flash-plan
+bash sable.sh panther R9 self-test
 
 # Titan-family build paths intentionally fail closed today:
 bash sable.sh titan2 N0 build-image
+```
+
+For a qualified build host, run self-test with strict environment enforcement:
+
+```bash
+bash sable.sh panther R9 self-test --strict-env
 ```
 
 ## Documentation
@@ -72,6 +80,9 @@ bash sable.sh titan2 N0 build-image
 ```text
 docs/BUILD.md
     host setup, source sync, build commands and output boundaries
+
+docs/HOST_VALIDATION.md
+    self-test, evidence directory layout and host-validation evidence contract
 
 docs/SIGNING.md
     DEV_SIGNED / RELEASE_CANDIDATE_SIGNED / PRODUCTION_SIGNED /
