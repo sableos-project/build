@@ -2,7 +2,7 @@
 set -euo pipefail
 
 usage() {
-  cat <<'EOF'
+  cat <<'EOF_USAGE'
 Usage:
   build/sable.sh <device> <release> <function> [options]
 
@@ -10,6 +10,7 @@ Examples:
   build/sable.sh panther R9 env-check
   build/sable.sh panther R9 source-sync
   build/sable.sh panther R9 flash-plan
+  build/sable.sh panther R9 self-test
   build/sable.sh titan2 N0 build-image
 
 Functions:
@@ -22,7 +23,8 @@ Functions:
   verify
   package
   flash-plan
-EOF
+  self-test
+EOF_USAGE
 }
 
 fail() {
@@ -50,7 +52,7 @@ case "${DEVICE}" in
 esac
 
 case "${FUNCTION}" in
-  env-check|source-sync|source-verify|build-image|build-apps|sign|verify|package|flash-plan) ;;
+  env-check|source-sync|source-verify|build-image|build-apps|sign|verify|package|flash-plan|self-test) ;;
   *) fail "unknown function: ${FUNCTION}" ;;
 esac
 
@@ -109,5 +111,8 @@ case "${FUNCTION}" in
     echo "ARTIFACT_KIND=${ARTIFACT_KIND}"
     echo "FLASH_PUBLIC=${FLASH_PUBLIC}"
     echo "REASON=${FAIL_CLOSED_REASON}"
+    ;;
+  self-test)
+    exec bash "${SCRIPT_DIR}/lib/sable/self-test.sh" "$@"
     ;;
 esac

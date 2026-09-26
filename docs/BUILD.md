@@ -28,6 +28,35 @@ bash sable.sh panther R9 env-check
 The report is both human-readable and machine-greppable. It emits `PASS`,
 `FAIL`, `FAIL_CLOSED` and key/value records.
 
+## Foundation self-test
+
+Run the public build foundation self-test before claiming that the command layer
+is healthy on a given host:
+
+```bash
+bash sable.sh panther R9 self-test
+```
+
+To capture evidence in a deterministic directory:
+
+```bash
+bash sable.sh panther R9 self-test \
+  --evidence-dir out/panther/R9/evidence/public-build-self-test
+```
+
+To make missing host prerequisites fail the self-test on a qualified build host:
+
+```bash
+bash sable.sh panther R9 self-test --strict-env
+```
+
+The self-test is dry-run/fail-closed. It checks shell syntax, captures env-check
+output, verifies Panther R9 source-sync/source-verify/flash-plan dry-run paths,
+and confirms that Titan-family build-image, signing, unknown device, unknown
+release, unknown function and missing-artifact verify paths fail closed.
+
+See `docs/HOST_VALIDATION.md` for the evidence layout and markers.
+
 ## Source sync boundary
 
 ```bash
@@ -79,6 +108,13 @@ out/<device>/<release>/
 out/<device>/<release>/artifacts/
 out/<device>/<release>/evidence/
 out/<device>/<release>/artifact-manifest.json
+```
+
+The public build foundation self-test currently writes host-validation evidence
+under either the caller-provided `--evidence-dir` path or:
+
+```text
+out/sable-public-build-evidence/<device>-<release>-<utc-stamp>/
 ```
 
 ## Non-goals in this phase
