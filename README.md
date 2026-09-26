@@ -27,9 +27,10 @@ panther / R9
     source/build/signing docs are being established
     accepted-image reproducibility is not yet claimed publicly
 
-titan2 / N0
-    RESEARCH_UNQUALIFIED
-    build and flash paths fail closed
+titan2 / N0_A16
+    TREBLE_PORTABILITY_STRATEGY_ACCEPTED
+    first candidate artifact class: gsi-system-image
+    build and flash paths remain fail closed
 
 titan2-elite / N0
     RESEARCH_UNQUALIFIED
@@ -75,6 +76,19 @@ For a qualified build host, run self-test with strict environment enforcement:
 bash sable.sh panther R9 self-test --strict-env
 ```
 
+## Treble portability boundary
+
+Titan-family and future Unihertz/MediaTek builds use the Treble portability lane.
+That means:
+
+- preserve stock vendor/kernel/firmware for N0;
+- start with a clean AOSP Android 16 ARM64 GSI substrate for Titan 2 N0;
+- treat RestlessOS as reference/future fork, not as the first boot dependency;
+- require local artifact evidence before enabling public build-image;
+- keep signing, package and flash paths closed until their gates are explicit.
+
+See `docs/TREBLE_PORTABILITY.md`.
+
 ## Documentation
 
 ```text
@@ -83,6 +97,9 @@ docs/BUILD.md
 
 docs/HOST_VALIDATION.md
     self-test, evidence directory layout and host-validation evidence contract
+
+docs/TREBLE_PORTABILITY.md
+    Titan-family / Unihertz / MediaTek build-lane policy
 
 docs/SIGNING.md
     DEV_SIGNED / RELEASE_CANDIDATE_SIGNED / PRODUCTION_SIGNED /
