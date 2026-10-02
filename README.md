@@ -1,6 +1,6 @@
 # SableOS build tooling
 
-Status: **public build foundation — 2026-09-26**
+Status: **public build foundation — 2026-10-02**
 
 This repository is the public command and documentation entrypoint for SableOS
 source sync, host validation, artifact build, signing-boundary documentation,
@@ -27,10 +27,11 @@ panther / R9
     source/build/signing docs are being established
     accepted-image reproducibility is not yet claimed publicly
 
-titan2 / N0_A16
-    TREBLE_PORTABILITY_STRATEGY_ACCEPTED
-    first candidate artifact class: gsi-system-image
-    build and flash paths remain fail closed
+titan2 / N1D_C3B
+    ACTIVE_CANONICAL_ENGINEERING_PRIVATE
+    current artifact class: systemimage engineering candidate
+    public build and flash paths remain fail closed
+    legacy N0_A16 public placeholder is historical
 
 titan2-elite / N0
     RESEARCH_UNQUALIFIED
@@ -66,7 +67,9 @@ bash sable.sh panther R9 source-sync
 bash sable.sh panther R9 flash-plan
 bash sable.sh panther R9 self-test
 
-# Titan-family build paths intentionally fail closed today:
+# Public Titan build paths intentionally fail closed today.
+# The old N0 command remains a fail-closed compatibility/example path, not
+# current N1D/C3B execution authority:
 bash sable.sh titan2 N0 build-image
 ```
 
@@ -79,12 +82,15 @@ bash sable.sh panther R9 self-test --strict-env
 ## Treble portability boundary
 
 Titan-family and future Unihertz/MediaTek builds use the Treble portability lane.
-That means:
+For current Titan 2 engineering that means:
 
-- preserve stock vendor/kernel/firmware for N0;
-- start with a clean AOSP Android 16 ARM64 GSI substrate for Titan 2 N0;
-- treat RestlessOS as reference/future fork, not as the first boot dependency;
-- require local artifact evidence before enabling public build-image;
+- preserve the qualified stock vendor/kernel/firmware boundary;
+- use the canonical N1D/C3B Graphene/AOSP-derived Android 16 base plus a minimal
+  Treble scaffold;
+- admit compatibility changes through the C3B compatibility-peel process;
+- treat RestlessOS/TrebleDroid as a known-fix compatibility reference, not the
+  Sable runtime/security baseline;
+- require local artifact evidence before enabling any public build-image path;
 - keep signing, package and flash paths closed until their gates are explicit.
 
 See `docs/TREBLE_PORTABILITY.md`.
