@@ -1,6 +1,6 @@
 # Multi-device engineering interface
 
-Status: **implemented foundation / normative interface — 2026-09-24**
+Status: **implemented foundation / normative interface — 2026-10-02**
 
 ## Operator contract
 
@@ -84,10 +84,14 @@ registration, flash planning and flashing are supported.
 Titan 2, Titan 2 Elite and Q27 currently declare those release/deployment
 capabilities blocked.
 
-## N0 Titan direction
+## Titan current direction
 
-Future Titan-family N0 records may bind a Sable system/GSI artifact plus exact
+Current Titan 2 canonical engineering is N1D/C3B. A future public record may
+bind the accepted Sable systemimage/GSI artifact plus the exact
 stock kernel/vendor/ODM/firmware basis.
+
+The legacy N0 public placeholder remains historical and does not authorize a
+build or mutation path.
 
 Before enabling mutation prove:
 
