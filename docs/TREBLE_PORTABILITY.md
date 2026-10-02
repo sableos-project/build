@@ -1,6 +1,6 @@
 # Treble portability build policy
 
-Status: **strategy accepted / build-image fail-closed**
+Status: **current portability policy / public build-image fail-closed — 2026-10-02**
 
 This document defines public build-tool posture for Titan-family and future
 Unihertz/MediaTek devices.
@@ -20,27 +20,35 @@ TREBLE_PORTABILITY_LANE
 A Treble portability artifact is not a Pixel-equivalent release image. It is a
 Sable userspace candidate bound to preserved stock vendor/kernel/firmware.
 
-## Titan 2 N0_A16
+## Titan 2 N1D/C3B
 
 ```text
 DEVICE=titan2
-RELEASE=N0_A16
+CANONICAL_RELEASE=N1D_C3B
 ANDROID_RELEASE=16
 PLATFORM_SDK=36
-ARTIFACT_KIND=gsi-system-image
+ARTIFACT_KIND=systemimage
 PRIMARY_OUTPUT=system.img
-FIRST_SUBSTRATE=AOSP16_CLEAN_GSI
-RESTLESSOS_ROLE=REFERENCE_AND_FUTURE_FORK
+FIRST_SUBSTRATE=GRAPHENE_AOSP_DERIVED_C3B_BASE
+TREBLE_SCAFFOLD=MINIMAL
+RESTLESSOS_ROLE=COMPATIBILITY_REFERENCE_ONLY
+FULL_RESTLESS_RUNTIME_STACK=BLOCKED
 PUBLIC_BUILD_IMAGE=FAIL_CLOSED
 PUBLIC_FLASH=NO
 ```
 
+The old N0/AOSP-first public strategy is historical precursor material. Current
+C3B compatibility uses a fail-closed peel: audit known fixes, admit only the
+safe build/Graphene-Treble compatibility subset, and keep runtime patch
+admission separately controlled.
+
 ## RestlessOS use
 
-RestlessOS is used as a compatibility reference and possible future fork for
-common Treble work. It is not the first Titan 2 N0 boot dependency.
+RestlessOS/TrebleDroid is used as a compatibility reference and known-fix
+inventory. The public fork now exists, but it is not the Sable product runtime
+or security baseline and is not imported wholesale into C3B.
 
-The planned fork is tracked by `sableos-project/platform_manifest#8`:
+The compatibility/reference fork is:
 
 ```text
 sableos-project/treble_restlessos
