@@ -30,7 +30,7 @@ panther / R9
 titan2 / N1D_C3B
     ACTIVE_CANONICAL_ENGINEERING_PRIVATE
     current artifact class: Sable-composed systemimage engineering build
-    E3 private build is running; public build and flash paths remain fail closed
+    E3/E4 are sealed; private E5A is PASS/SEALED; public build and flash paths remain fail closed
     legacy N0_A16 public placeholder is historical
 
 titan2-elite / N0
@@ -50,9 +50,12 @@ The canonical private lane is Titan 2 N1D/C3B:
 C3B_E1_SYSTEMIMAGE=PASS
 C3B_E2_SOURCE_ADMISSION=PASS
 C3B_E3_BUILD_SOURCE=caf98dde723d07a071d95aaa1ef27d578d3208d8
-C3B_E3_STATUS=BUILD_RUNNING_NOT_YET_SEALED
+C3B_E3_STATUS=SEALED_PASS
 C3B_RUNTIME_PATCH_ALLOWLIST_COUNT=0
-DEVICE_CONTACT_AUTHORIZED=NO
+PRIVATE_E5A_RESULT=PASS_REVIEW_READY_SEALED
+PRIVATE_E5A_FINAL_DEVICE_MODE=FASTBOOTD
+PRIVATE_E5B_MUTATION_AUTHORIZED=NO
+DEVICE_CONTACT_AUTHORIZED_BY_PUBLIC_BUILD=NO
 FLASH_AUTHORIZED=NO
 TARGET_FILES_AUTHORIZED=NO
 OTA_AUTHORIZED=NO
@@ -60,8 +63,10 @@ PRODUCTION_SIGNING_AUTHORIZED=NO
 ```
 
 The public tool remains fail-closed until a separately reviewed public
-composition, artifact and deployment contract is qualified. The private E3
-build does not authorize a public `build-image` or flash path.
+composition, artifact and deployment contract is qualified. Private E3/E4
+qualification and E5A read-only physical evidence do not authorize a public
+`build-image` or flash path. Private E5B mutation is still separately
+unauthorized.
 
 ## Functions
 
